@@ -114,13 +114,13 @@ done
 INSTALL_PRINTER=0
 echo ""
 read -r -p "Supporto stampante? (s/n): " c
-[[ "$c" =~ ^[sS yY]$ ]] && INSTALL_PRINTER=1
+[[ "$c" =~ ^[sSyY]$ ]] && INSTALL_PRINTER=1
 
 # Bluetooth
 INSTALL_BT=0
 echo ""
 read -r -p "Bluetooth? (s/n): " c
-[[ "$c" =~ ^[sS yY]$ ]] && INSTALL_BT=1
+[[ "$c" =~ ^[sSyY]$ ]] && INSTALL_BT=1
 
 # Audio
 AUDIO_MODE="easyeffects"
@@ -186,7 +186,7 @@ case "$c" in 1) BROWSER=1 ;; 2) BROWSER=2 ;; 3) BROWSER=3 ;; 4) BROWSER=4 ;; 5) 
 INSTALL_DDCUTIL=0
 echo ""
 read -r -p "ddcutil (controllo luminosità monitor DDC/CI)? (s/n): " c
-[[ "$c" =~ ^[sS yY]$ ]] && INSTALL_DDCUTIL=1
+[[ "$c" =~ ^[sSyY]$ ]] && INSTALL_DDCUTIL=1
 
 # ═════════════════════════════════════════════════════════════════════════════
 # LISTA PACCHETTI — esportata dal sistema originale con: pacman -Qqe
