@@ -418,12 +418,11 @@ for item in "$CONFIG_SRC"/*/; do
     }
 done
 # Backup anche file singoli nella root .config
-for f in "$CONFIG_SRC"/*.{toml,ini,conf,json,jsonc} 2>/dev/null; do
-    [ -f "$f" ] || continue
+while IFS= read -r f; do
     name=$(basename "$f")
     target="$CONFIG_DIR/$name"
     [ -e "$target" ] && mv "$target" "$CONFIG_DIR/${name}.bak.${BACKUP_TS}"
-done
+done < <(find "$CONFIG_SRC" -maxdepth 1 -type f \( -name "*.toml" -o -name "*.ini" -o -name "*.conf" -o -name "*.json" -o -name "*.jsonc" \) 2>/dev/null)
 
 msg "Copio tutti i dotfiles..."
 cp -rf "$CONFIG_SRC"/. "$CONFIG_DIR"/
