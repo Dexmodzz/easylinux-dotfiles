@@ -10,6 +10,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
+# ── Timer ─────────────────────────────────────────────────────────────────────
+START_TIME=$(date +%s)
+
 export LC_MESSAGES=C
 export LANG=C
 
@@ -23,6 +26,15 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
+# ── Tracking variabili per checklist finale ───────────────────────────────────
+STATUS_PKGS=0       # 1=ok 2=warn
+STATUS_AUR=0
+STATUS_SERVICES=0
+STATUS_FLATHUB=0
+STATUS_DDCUTIL=0
+STATUS_DOTFILES=0
+STATUS_GTK=0
+
 # ── Utility ───────────────────────────────────────────────────────────────────
 append_unique_package() {
     local -n _list="$1"; local _pkg="$2"
@@ -30,7 +42,7 @@ append_unique_package() {
     _list+=("$_pkg")
 }
 
-# Wrapper per dry-run: stampa il comando invece di eseguirlo
+# Wrapper per dry-run
 run() {
     if [ "$DRY_RUN" -eq 1 ]; then
         printf "${YELLOW}  [DRY-RUN]${ALL_OFF} %s\n" "$*" >&2
@@ -54,11 +66,37 @@ enable_colors() {
 }
 [[ -t 2 ]] && enable_colors || disable_colors
 
-msg()     { printf "${GREEN}▶${ALL_OFF}${BOLD} %s${ALL_OFF}\n" "$*" >&2; }
-info()    { printf "${YELLOW}  • %s${ALL_OFF}\n" "$*" >&2; }
-warn()    { printf "${YELLOW}  ⚠ %s${ALL_OFF}\n" "$*" >&2; }
-error()   { printf "${RED}  ✗ %s${ALL_OFF}\n" "$*" >&2; }
-section() { echo ""; printf "${CYAN}${BOLD}══════════════════════════════════════════\n  %s\n══════════════════════════════════════════${ALL_OFF}\n" "$*"; echo ""; }
+msg()   { printf "${GREEN}▶${ALL_OFF}${BOLD} %s${ALL_OFF}\n" "$*" >&2; }
+info()  { printf "${YELLOW}  • %s${ALL_OFF}\n" "$*" >&2; }
+warn()  { printf "${YELLOW}  ⚠ %s${ALL_OFF}\n" "$*" >&2; }
+error() { printf "${RED}  ✗ %s${ALL_OFF}\n" "$*" >&2; }
+
+# section STEP TOTAL TITLE  oppure  section TITLE (senza numerazione)
+section() {
+    if [ "$#" -eq 3 ]; then
+        echo ""
+        printf "${CYAN}${BOLD}══════════════════════════════════════════\n  [%s/%s] %s\n══════════════════════════════════════════${ALL_OFF}\n" "$1" "$2" "$3"
+        echo ""
+    else
+        echo ""
+        printf "${CYAN}${BOLD}══════════════════════════════════════════\n  %s\n══════════════════════════════════════════${ALL_OFF}\n" "$1"
+        echo ""
+    fi
+}
+
+# Barra di progresso: progress_bar CURRENT TOTAL [LABEL]
+progress_bar() {
+    local current=$1 total=$2 label="${3:-}"
+    local width=38
+    local filled=$(( total > 0 ? current * width / total : 0 ))
+    local empty=$(( width - filled ))
+    local pct=$(( total > 0 ? current * 100 / total : 0 ))
+    local bar=""
+    local i
+    for (( i=0; i<filled; i++ )); do bar+="█"; done
+    for (( i=0; i<empty;  i++ )); do bar+="░"; done
+    printf "\r${CYAN}  [%s] %3d%%${ALL_OFF}  %s" "$bar" "$pct" "$label" >&2
+}
 
 # ── Banner ────────────────────────────────────────────────────────────────────
 printf "${CYAN}${BOLD}"
@@ -84,7 +122,6 @@ echo ""
 [ ! -f /etc/pacman.conf ]      && { echo "ERRORE: /etc/pacman.conf non trovato."; exit 1; }
 [ ! -d "$SCRIPT_DIR/.config" ] && { echo "ERRORE: cartella .config non trovata in $SCRIPT_DIR"; exit 1; }
 
-# Check connessione internet
 msg "Verifico connessione internet..."
 if ! ping -c1 -W3 archlinux.org &>/dev/null; then
     echo "ERRORE: nessuna connessione internet. Controlla la rete e riprova."
@@ -92,7 +129,6 @@ if ! ping -c1 -W3 archlinux.org &>/dev/null; then
 fi
 info "Connessione OK"
 
-# Check spazio disco libero (minimo 10 GB su /)
 msg "Verifico spazio disco..."
 FREE_KB=$(df / --output=avail | tail -1)
 FREE_GB=$(( FREE_KB / 1024 / 1024 ))
@@ -160,11 +196,7 @@ echo "  1. Sì"
 echo "  2. No"
 while true; do
     read -r -p "Scelta (1-2): " c
-    case "$c" in
-        1) INSTALL_PRINTER=1; break ;;
-        2) break ;;
-        *) echo "1 o 2." ;;
-    esac
+    case "$c" in 1) INSTALL_PRINTER=1; break ;; 2) break ;; *) echo "1 o 2." ;; esac
 done
 
 # ── Bluetooth ─────────────────────────────────────────────────────────────────
@@ -175,11 +207,7 @@ echo "  1. Sì  (installa bluez, blueman, abilita servizio)"
 echo "  2. No"
 while true; do
     read -r -p "Scelta (1-2): " c
-    case "$c" in
-        1) INSTALL_BT=1; break ;;
-        2) break ;;
-        *) echo "1 o 2." ;;
-    esac
+    case "$c" in 1) INSTALL_BT=1; break ;; 2) break ;; *) echo "1 o 2." ;; esac
 done
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
@@ -192,9 +220,9 @@ echo "  2. Dolby Atmos  (profilo PipeWire surround)"
 while true; do
     read -r -p "Scelta (0-2): " c
     case "$c" in
-        0) AUDIO_MODE="none";         break ;;
+        0) AUDIO_MODE="none";           break ;;
         1|"") AUDIO_MODE="easyeffects"; break ;;
-        2) AUDIO_MODE="dolby";        break ;;
+        2) AUDIO_MODE="dolby";          break ;;
         *) echo "0, 1 o 2." ;;
     esac
 done
@@ -277,10 +305,7 @@ echo "  5. Zen Browser"
 echo "  0. Salta"
 while true; do
     read -r -p "Scelta (0-5): " c
-    case "$c" in
-        0|1|2|3|4|5) BROWSER=$c; break ;;
-        *) echo "Inserisci un numero da 0 a 5." ;;
-    esac
+    case "$c" in 0|1|2|3|4|5) BROWSER=$c; break ;; *) echo "0-5." ;; esac
 done
 
 # ── Cosmic Store ──────────────────────────────────────────────────────────────
@@ -290,11 +315,7 @@ echo "  1. Sì  (installa cosmic-store, configura Flathub con permessi completi)
 echo "  2. No"
 while true; do
     read -r -p "Scelta (1-2): " c
-    case "$c" in
-        1) INSTALL_COSMIC_STORE=1; break ;;
-        2) break ;;
-        *) echo "1 o 2." ;;
-    esac
+    case "$c" in 1) INSTALL_COSMIC_STORE=1; break ;; 2) break ;; *) echo "1 o 2." ;; esac
 done
 
 # ── ddcutil ───────────────────────────────────────────────────────────────────
@@ -305,11 +326,44 @@ echo "  1. Sì"
 echo "  2. No"
 while true; do
     read -r -p "Scelta (1-2): " c
-    case "$c" in
-        1) INSTALL_DDCUTIL=1; break ;;
-        2) break ;;
-        *) echo "1 o 2." ;;
-    esac
+    case "$c" in 1) INSTALL_DDCUTIL=1; break ;; 2) break ;; *) echo "1 o 2." ;; esac
+done
+
+# ── Box riepilogo scelte ───────────────────────────────────────────────────────
+_gpu_label="Salta (manuale)"
+case "$GPU_MODE" in nvidia) _gpu_label="NVIDIA (nvidia-open)" ;; amd) _gpu_label="AMD (mesa/vulkan)" ;; intel) _gpu_label="Intel (vulkan-intel)" ;; esac
+
+_browser_label="Salta"
+case "$BROWSER" in 1) _browser_label="Brave" ;; 2) _browser_label="Firefox" ;; 3) _browser_label="LibreWolf" ;; 4) _browser_label="Vivaldi" ;; 5) _browser_label="Zen Browser" ;; esac
+
+_audio_label="Salta"
+case "$AUDIO_MODE" in easyeffects) _audio_label="EasyEffects" ;; dolby) _audio_label="Dolby Atmos" ;; esac
+
+_gaming_label="Nessuno"
+[ "${#GAMING_PKGS[@]}" -gt 0 ] && _gaming_label="${GAMING_PKGS[*]}"
+
+_bt_label="No";      [ "$INSTALL_BT"      -eq 1 ] && _bt_label="Sì"
+_printer_label="No"; [ "$INSTALL_PRINTER"  -eq 1 ] && _printer_label="Sì"
+_ddcutil_label="No"; [ "$INSTALL_DDCUTIL"  -eq 1 ] && _ddcutil_label="Sì"
+_cosmic_label="No";  [ "$INSTALL_COSMIC_STORE" -eq 1 ] && _cosmic_label="Sì"
+
+echo ""
+printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
+printf "${CYAN}${BOLD}║       RIEPILOGO INSTALLAZIONE                ║${ALL_OFF}\n"
+printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "GPU"        "$_gpu_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Browser"    "$_browser_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Audio"      "$_audio_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30.30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Gaming"     "$_gaming_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Bluetooth"  "$_bt_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Stampante"  "$_printer_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "ddcutil"    "$_ddcutil_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "CosmicStore" "$_cosmic_label"
+printf "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${ALL_OFF}\n"
+echo ""
+while true; do
+    read -r -p "Confermi e avvii l'installazione? (s/n): " confirm
+    case "$confirm" in s|S|y|Y) break ;; n|N) echo "Annullato."; exit 0 ;; *) echo "s o n." ;; esac
 done
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -434,13 +488,8 @@ case "$GPU_MODE" in
         ;;
 esac
 
-# Bluetooth completo
-[ "$INSTALL_BT" -eq 1 ] && PACKAGES+=(bluez-hid2hci bluez-obex bluez-utils blueman)
-
-# Audio extra
+[ "$INSTALL_BT"      -eq 1 ] && PACKAGES+=(bluez-hid2hci bluez-obex bluez-utils blueman)
 [ "$AUDIO_MODE" = "easyeffects" ] && PACKAGES+=(easyeffects lsp-plugins-lv2 calf)
-
-# Stampante
 [ "$INSTALL_PRINTER" -eq 1 ] && PACKAGES+=(
     cups cups-filters cups-pdf hplip gutenprint system-config-printer
     foomatic-db foomatic-db-engine foomatic-db-gutenprint-ppds
@@ -449,7 +498,7 @@ esac
 )
 
 # ═════════════════════════════════════════════════════════════════════════════
-section "Installazione pacchetti"
+section 1 9 "Installazione pacchetti"
 # ═════════════════════════════════════════════════════════════════════════════
 
 msg "Aggiorno il sistema..."
@@ -458,10 +507,19 @@ run pacman -Syu --noconfirm
 msg "Installo tutti i pacchetti core..."
 if ! run pacman -S --needed --noconfirm "${PACKAGES[@]}"; then
     warn "Alcuni pacchetti non trovati. Riprovo uno per uno..."
+    _total=${#PACKAGES[@]}
+    _count=0
     for pkg in "${PACKAGES[@]}"; do
+        _count=$(( _count + 1 ))
+        progress_bar "$_count" "$_total" "$pkg"
         run pacman -S --needed --noconfirm "$pkg" 2>/dev/null || warn "Non trovato: $pkg"
     done
+    echo ""   # newline dopo la barra
+    STATUS_PKGS=2
+else
+    STATUS_PKGS=1
 fi
+[ "$STATUS_PKGS" -eq 0 ] && STATUS_PKGS=1
 
 # Gaming
 [ "${#GAMING_PKGS[@]}" -gt 0 ] && {
@@ -476,10 +534,9 @@ fi
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
-section "Pacchetti AUR con yay"
+section 2 9 "Pacchetti AUR con yay"
 # ═════════════════════════════════════════════════════════════════════════════
 
-# Installa yay se non presente (su CachyOS di solito è già installato)
 if ! command -v yay &>/dev/null; then
     msg "Installo yay..."
     run pacman -S --needed --noconfirm git base-devel
@@ -489,8 +546,13 @@ if ! command -v yay &>/dev/null; then
 fi
 
 msg "Installo noctalia-shell, noctalia-qs e vscodium..."
-run sudo -u "$ACTUAL_USER" yay -S --needed --noconfirm \
-    noctalia-shell noctalia-qs vscodium || warn "Alcuni AUR packages falliti."
+if run sudo -u "$ACTUAL_USER" yay -S --needed --noconfirm \
+    noctalia-shell noctalia-qs vscodium; then
+    STATUS_AUR=1
+else
+    warn "Alcuni AUR packages falliti."
+    STATUS_AUR=2
+fi
 
 # Cosmic Store
 if [ "$INSTALL_COSMIC_STORE" -eq 1 ]; then
@@ -503,34 +565,39 @@ case "$BROWSER" in
     1) msg "Installo Brave...";
        run pacman -S --noconfirm brave-bin 2>/dev/null || \
        run sudo -u "$ACTUAL_USER" yay -S --noconfirm brave-origin-nightly-bin ;;
-    2) msg "Installo Firefox...";    run pacman -S --noconfirm firefox ;;
-    3) msg "Installo LibreWolf...";  run sudo -u "$ACTUAL_USER" yay -S --noconfirm librewolf ;;
-    4) msg "Installo Vivaldi...";    run pacman -S --noconfirm vivaldi ;;
+    2) msg "Installo Firefox...";     run pacman -S --noconfirm firefox ;;
+    3) msg "Installo LibreWolf...";   run sudo -u "$ACTUAL_USER" yay -S --noconfirm librewolf ;;
+    4) msg "Installo Vivaldi...";     run pacman -S --noconfirm vivaldi ;;
     5) msg "Installo Zen Browser..."; run sudo -u "$ACTUAL_USER" yay -S --noconfirm zen-browser-bin ;;
     *) info "Browser saltato." ;;
 esac
 
 # ═════════════════════════════════════════════════════════════════════════════
-section "Servizi di sistema"
+section 3 9 "Servizi di sistema"
 # ═════════════════════════════════════════════════════════════════════════════
 
 msg "Abilito servizi..."
 run systemctl enable NetworkManager
 run systemctl enable power-profiles-daemon
-run systemctl enable sddm                               # display manager KDE
-[ "$INSTALL_PRINTER" -eq 1 ] && run systemctl enable cups || true
-[ "$INSTALL_BT"      -eq 1 ] && run systemctl enable bluetooth || true
-run systemctl enable plymouth-quit-wait.service 2>/dev/null || true
+run systemctl enable sddm
+[ "$INSTALL_PRINTER" -eq 1 ] && run systemctl enable cups         || true
+[ "$INSTALL_BT"      -eq 1 ] && run systemctl enable bluetooth    || true
+run systemctl enable plymouth-quit-wait.service 2>/dev/null        || true
+STATUS_SERVICES=1
 
 # ═════════════════════════════════════════════════════════════════════════════
-section "Flatpak e Flathub"
+section 4 9 "Flatpak e Flathub"
 # ═════════════════════════════════════════════════════════════════════════════
 
 msg "Aggiungo Flathub remote..."
-run sudo -u "$ACTUAL_USER" flatpak remote-add --if-not-exists flathub \
-    https://dl.flathub.org/repo/flathub.flatpakrepo || warn "Flathub remote fallito."
+if run sudo -u "$ACTUAL_USER" flatpak remote-add --if-not-exists flathub \
+    https://dl.flathub.org/repo/flathub.flatpakrepo; then
+    STATUS_FLATHUB=1
+else
+    warn "Flathub remote fallito."
+    STATUS_FLATHUB=2
+fi
 
-# Cosmic Store: permessi Flatpak completi
 if [ "$INSTALL_COSMIC_STORE" -eq 1 ]; then
     msg "Configuro permessi Flatpak per cosmic-store..."
     run sudo -u "$ACTUAL_USER" flatpak override --user \
@@ -544,7 +611,7 @@ if [ "$INSTALL_COSMIC_STORE" -eq 1 ]; then
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-section "ddcutil"
+section 5 9 "ddcutil"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if [ "$INSTALL_DDCUTIL" -eq 1 ]; then
@@ -557,11 +624,14 @@ if [ "$INSTALL_DDCUTIL" -eq 1 ]; then
     run udevadm trigger
     run usermod -aG i2c "$ACTUAL_USER" || true
     DDCUTIL_ENABLED=1
+    STATUS_DDCUTIL=1
     info "ddcutil configurato. Fai logout/reboot per applicare i gruppi."
+else
+    STATUS_DDCUTIL=0   # saltato, non un errore
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-section "Shell predefinita"
+section 6 9 "Shell predefinita"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if command -v fish &>/dev/null; then
@@ -571,13 +641,12 @@ if command -v fish &>/dev/null; then
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-section "Deploy dotfiles"
+section 7 9 "Deploy dotfiles"
 # ═════════════════════════════════════════════════════════════════════════════
 
 CONFIG_SRC="$SCRIPT_DIR/.config"
 run sudo -u "$ACTUAL_USER" mkdir -p "$CONFIG_DIR"
 
-# Backup configurazioni esistenti
 BACKUP_TS=$(date +%s)
 msg "Backup configurazioni esistenti..."
 for item in "$CONFIG_SRC"/*/; do
@@ -588,7 +657,6 @@ for item in "$CONFIG_SRC"/*/; do
         info "Backup: $name"
     }
 done
-# Backup file singoli nella root .config
 while IFS= read -r f; do
     name=$(basename "$f")
     target="$CONFIG_DIR/$name"
@@ -601,14 +669,12 @@ msg "Copio tutti i dotfiles..."
 run cp -rf "$CONFIG_SRC"/. "$CONFIG_DIR"/
 run chown -R "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR"
 
-# Fix path assoluto qt6ct.conf (__HOME__ → home reale dell'utente)
 if [ -f "$CONFIG_DIR/qt6ct/qt6ct.conf" ]; then
     run sed -i "s|__HOME__|$ACTUAL_USER_HOME|g" "$CONFIG_DIR/qt6ct/qt6ct.conf"
     run chown "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR/qt6ct/qt6ct.conf"
     info "Path qt6ct aggiornato"
 fi
 
-# monitors.conf: placeholder se non presente (è hardware-specifico)
 if [ ! -f "$CONFIG_DIR/hypr/monitors.conf" ]; then
     sudo -u "$ACTUAL_USER" tee "$CONFIG_DIR/hypr/monitors.conf" >/dev/null << 'MONEOF'
 # Configura i tuoi monitor qui.
@@ -616,10 +682,9 @@ if [ ! -f "$CONFIG_DIR/hypr/monitors.conf" ]; then
 # Vedi: https://wiki.hyprland.org/Configuring/Monitors/
 monitor=,preferred,auto,1
 MONEOF
-    info "monitors.conf placeholder creato — configuralo con la risoluzione del tuo monitor"
+    info "monitors.conf placeholder creato — configuralo con i tuoi monitor"
 fi
 
-# Attiva DDC in noctalia/settings.json se ddcutil è stato installato
 [ "$DDCUTIL_ENABLED" -eq 1 ] && [ -f "$CONFIG_DIR/noctalia/settings.json" ] && {
     python3 - "$CONFIG_DIR/noctalia/settings.json" <<'PY'
 import json, sys
@@ -631,13 +696,13 @@ PY
     chown "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR/noctalia/settings.json"
 }
 
-# Rendi eseguibili gli script Hyprland
 msg "Permessi script hyprland..."
 [ -d "$CONFIG_DIR/hypr/Scripts" ] && \
     find "$CONFIG_DIR/hypr/Scripts" -type f -exec chmod +x {} \;
+STATUS_DOTFILES=1
 
 # ═════════════════════════════════════════════════════════════════════════════
-section "Tema GTK e Qt"
+section 8 9 "Tema GTK e Qt"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if command -v gsettings &>/dev/null; then
@@ -648,9 +713,12 @@ if command -v gsettings &>/dev/null; then
     run sudo -u "$ACTUAL_USER" gsettings set org.gnome.desktop.interface font-name    'Adwaita Sans 11'
     run sudo -u "$ACTUAL_USER" gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
     msg "gsettings applicati"
+    STATUS_GTK=1
+else
+    warn "gsettings non disponibile"
+    STATUS_GTK=2
 fi
 
-# Variabili ambiente Qt
 ENV_FILE="$ACTUAL_USER_HOME/.config/environment.d/qt-theme.conf"
 run sudo -u "$ACTUAL_USER" mkdir -p "$(dirname "$ENV_FILE")"
 [ ! -f "$ENV_FILE" ] && sudo -u "$ACTUAL_USER" tee "$ENV_FILE" >/dev/null << 'ENV'
@@ -659,7 +727,7 @@ QT_STYLE_OVERRIDE=Breeze
 ENV
 
 # ═════════════════════════════════════════════════════════════════════════════
-section "Thunar e directory utente"
+section 9 9 "Thunar e directory utente"
 # ═════════════════════════════════════════════════════════════════════════════
 
 run sudo -u "$ACTUAL_USER" xdg-user-dirs-update || true
@@ -677,7 +745,6 @@ file://$ACTUAL_USER_HOME/Videos
 file://$ACTUAL_USER_HOME/.config/hypr
 EOF
 
-# Profilo Dolby PipeWire
 [ "$AUDIO_MODE" = "dolby" ] && [ -d "$SCRIPT_DIR/pipewire" ] && {
     run sudo -u "$ACTUAL_USER" mkdir -p "$CONFIG_DIR/pipewire"
     run cp -rf "$SCRIPT_DIR/pipewire/"* "$CONFIG_DIR/pipewire/"
@@ -686,19 +753,52 @@ EOF
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
-section "✔  Installazione completata!"
+# CHECKLIST FINALE + TIMER
 # ═════════════════════════════════════════════════════════════════════════════
+END_TIME=$(date +%s)
+ELAPSED=$(( END_TIME - START_TIME ))
+ELAPSED_MIN=$(( ELAPSED / 60 ))
+ELAPSED_SEC=$(( ELAPSED % 60 ))
 
-printf "${GREEN}${BOLD}Tutto installato e configurato.${ALL_OFF}\n\n"
+_ok="${GREEN}${BOLD}  ✔${ALL_OFF}"
+_warn="${YELLOW}${BOLD}  ⚠${ALL_OFF}"
+_skip="${CYAN}  –${ALL_OFF}"
+
+_fmt_status() {
+    case "$1" in
+        1) printf "%s" "$_ok" ;;
+        2) printf "%s" "$_warn" ;;
+        *) printf "%s" "$_skip" ;;
+    esac
+}
+
+echo ""
+printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
+printf "${CYAN}${BOLD}║           RIEPILOGO INSTALLAZIONE            ║${ALL_OFF}\n"
+printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_PKGS)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Pacchetti core"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_AUR)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Pacchetti AUR (noctalia, vscodium)"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_SERVICES)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Servizi di sistema (sddm, NM...)"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_FLATHUB)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Flatpak / Flathub"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_DOTFILES)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Dotfiles deployati"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_GTK)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Tema GTK / Qt / gsettings"
+if [ "$INSTALL_DDCUTIL" -eq 1 ]; then
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_DDCUTIL)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "ddcutil (DDC/CI monitor)"
+fi
+printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
+printf "${CYAN}${BOLD}║${ALL_OFF}  ${GREEN}${BOLD}%-44s${ALL_OFF} ${CYAN}${BOLD}║${ALL_OFF}\n" "Tempo totale: ${ELAPSED_MIN}m ${ELAPSED_SEC}s"
+printf "${CYAN}${BOLD}║${ALL_OFF}  Log: %-40s ${CYAN}${BOLD}║${ALL_OFF}\n" "$LOG_FILE"
+printf "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${ALL_OFF}\n"
+echo ""
+
 printf "${CYAN}Note importanti:${ALL_OFF}\n"
-printf "  • ${YELLOW}monitors.conf${ALL_OFF} è un placeholder: configuralo con la risoluzione del tuo monitor\n"
+printf "  • ${YELLOW}monitors.conf${ALL_OFF} è un placeholder: configuralo con i tuoi monitor\n"
 printf "      nano %s/hypr/monitors.conf\n" "$CONFIG_DIR"
 printf "  • Se usi NVIDIA, verifica che il kernel corretto sia attivo:\n"
 printf "      uname -r  (deve contenere 'cachyos' o 'bore')\n"
 printf "  • Verifica che hyprland.conf includa:\n"
 printf "      ${YELLOW}source = ~/.config/hypr/themes/theme.conf${ALL_OFF}\n"
-printf "      ${YELLOW}source = ~/.config/hypr/noctalia/noctalia-colors.conf${ALL_OFF}\n"
-printf "\n  • Log completo salvato in: ${YELLOW}%s${ALL_OFF}\n\n" "$LOG_FILE"
+printf "      ${YELLOW}source = ~/.config/hypr/noctalia/noctalia-colors.conf${ALL_OFF}\n\n"
 
 while true; do
     read -r -p "Riavviare ora? (s/n): " r
