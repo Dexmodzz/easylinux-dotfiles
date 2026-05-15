@@ -32,6 +32,7 @@ STATUS_AUR=0
 STATUS_SERVICES=0
 STATUS_FLATHUB=0
 STATUS_DDCUTIL=0
+STATUS_LAPTOP=0
 STATUS_DOTFILES=0
 STATUS_GTK=0
 
@@ -318,6 +319,17 @@ while true; do
     case "$c" in 1) INSTALL_COSMIC_STORE=1; break ;; 2) break ;; *) echo "1 o 2." ;; esac
 done
 
+# ── Laptop ────────────────────────────────────────────────────────────────────
+INSTALL_LAPTOP=0
+echo ""
+echo "Componenti portatile (batteria e risparmio energetico):"
+echo "  1. Sì  (installa auto-cpufreq, abilita servizio gestione batteria)"
+echo "  2. No"
+while true; do
+    read -r -p "Scelta (1-2): " c
+    case "$c" in 1) INSTALL_LAPTOP=1; break ;; 2) break ;; *) echo "1 o 2." ;; esac
+done
+
 # ── ddcutil ───────────────────────────────────────────────────────────────────
 INSTALL_DDCUTIL=0
 echo ""
@@ -334,7 +346,7 @@ _gpu_label="Salta (manuale)"
 case "$GPU_MODE" in nvidia) _gpu_label="NVIDIA (nvidia-open)" ;; amd) _gpu_label="AMD (mesa/vulkan)" ;; intel) _gpu_label="Intel (vulkan-intel)" ;; esac
 
 _browser_label="Salta"
-case "$BROWSER" in 1) _browser_label="Brave" ;; 2) _browser_label="Firefox" ;; 3) _browser_label="LibreWolf" ;; 4) _browser_label="Vivaldi" ;; 5) _browser_label="Zen Browser" ;; esac
+case "$BROWSER" in 1) _browser_label="Brave Origin Nightly" ;; 2) _browser_label="Firefox" ;; 3) _browser_label="LibreWolf" ;; 4) _browser_label="Vivaldi" ;; 5) _browser_label="Zen Browser" ;; esac
 
 _audio_label="Salta"
 case "$AUDIO_MODE" in easyeffects) _audio_label="EasyEffects" ;; dolby) _audio_label="Dolby Atmos" ;; esac
@@ -346,6 +358,7 @@ _bt_label="No";      [ "$INSTALL_BT"      -eq 1 ] && _bt_label="Sì"
 _printer_label="No"; [ "$INSTALL_PRINTER"  -eq 1 ] && _printer_label="Sì"
 _ddcutil_label="No"; [ "$INSTALL_DDCUTIL"  -eq 1 ] && _ddcutil_label="Sì"
 _cosmic_label="No";  [ "$INSTALL_COSMIC_STORE" -eq 1 ] && _cosmic_label="Sì"
+_laptop_label="No";  [ "$INSTALL_LAPTOP"   -eq 1 ] && _laptop_label="Sì (auto-cpufreq)"
 
 echo ""
 printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
@@ -358,6 +371,7 @@ printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30.30s ${CYAN}
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Bluetooth"  "$_bt_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Stampante"  "$_printer_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "ddcutil"    "$_ddcutil_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Portatile"  "$_laptop_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "CosmicStore" "$_cosmic_label"
 printf "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${ALL_OFF}\n"
 echo ""
@@ -554,6 +568,17 @@ else
     STATUS_AUR=2
 fi
 
+# Laptop / auto-cpufreq
+if [ "$INSTALL_LAPTOP" -eq 1 ]; then
+    msg "Installo auto-cpufreq..."
+    if run sudo -u "$ACTUAL_USER" yay -S --needed --noconfirm auto-cpufreq; then
+        STATUS_LAPTOP=1
+    else
+        warn "auto-cpufreq non trovato nell'AUR."
+        STATUS_LAPTOP=2
+    fi
+fi
+
 # Cosmic Store
 if [ "$INSTALL_COSMIC_STORE" -eq 1 ]; then
     msg "Installo cosmic-store..."
@@ -562,8 +587,7 @@ fi
 
 # Browser
 case "$BROWSER" in
-    1) msg "Installo Brave...";
-       run pacman -S --noconfirm brave-bin 2>/dev/null || \
+    1) msg "Installo Brave Origin Nightly...";
        run sudo -u "$ACTUAL_USER" yay -S --noconfirm brave-origin-nightly-bin ;;
     2) msg "Installo Firefox...";     run pacman -S --noconfirm firefox ;;
     3) msg "Installo LibreWolf...";   run sudo -u "$ACTUAL_USER" yay -S --noconfirm librewolf ;;
@@ -580,9 +604,10 @@ msg "Abilito servizi..."
 run systemctl enable NetworkManager
 run systemctl enable power-profiles-daemon
 run systemctl enable sddm
-[ "$INSTALL_PRINTER" -eq 1 ] && run systemctl enable cups         || true
-[ "$INSTALL_BT"      -eq 1 ] && run systemctl enable bluetooth    || true
-run systemctl enable plymouth-quit-wait.service 2>/dev/null        || true
+[ "$INSTALL_PRINTER" -eq 1 ] && run systemctl enable cups                  || true
+[ "$INSTALL_BT"      -eq 1 ] && run systemctl enable bluetooth             || true
+[ "$INSTALL_LAPTOP"  -eq 1 ] && run systemctl enable auto-cpufreq          || true
+run systemctl enable plymouth-quit-wait.service 2>/dev/null                 || true
 STATUS_SERVICES=1
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -784,6 +809,9 @@ printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_DOTFILES)   %-38s ${CY
 printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_GTK)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Tema GTK / Qt / gsettings"
 if [ "$INSTALL_DDCUTIL" -eq 1 ]; then
 printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_DDCUTIL)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "ddcutil (DDC/CI monitor)"
+fi
+if [ "$INSTALL_LAPTOP" -eq 1 ]; then
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_LAPTOP)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "auto-cpufreq (gestione batteria)"
 fi
 printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
 printf "${CYAN}${BOLD}║${ALL_OFF}  ${GREEN}${BOLD}%-44s${ALL_OFF} ${CYAN}${BOLD}║${ALL_OFF}\n" "Tempo totale: ${ELAPSED_MIN}m ${ELAPSED_SEC}s"
