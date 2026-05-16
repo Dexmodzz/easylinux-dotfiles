@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="easylinux-banner.png" alt="EasyLinux">
+![EasyLinux](easylinux-banner.png)
 
 </div>
 
