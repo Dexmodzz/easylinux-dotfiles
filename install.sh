@@ -569,6 +569,12 @@ msg "Repository added: $_cachyos_repo_added"
 msg "Refreshing package database..."
 run pacman -Sy
 
+info "Cleaning up old kernels..."
+while IFS= read -r _kpkg; do
+    [[ "$_kpkg" =~ (lib|api|firmware|docs|nvidia|amd|intel|mesa|vulkan|util|acpi|tools) ]] && continue
+    run pacman -Rns --noconfirm "$_kpkg" &>/dev/null 2>&1 || true
+done < <(pacman -Qq 2>/dev/null | grep -E '^linux' | grep -v 'cachyos-bore' || true)
+
 msg "Installing linux-cachyos-bore and headers..."
 if ! run pacman -S --needed --noconfirm linux-cachyos-bore linux-cachyos-bore-headers; then
     error "Kernel linux-cachyos-bore installation failed."
