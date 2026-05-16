@@ -175,10 +175,10 @@ section "Interactive setup"
 # ── GPU ───────────────────────────────────────────────────────────────────────
 GPU_MODE="none"
 echo "GPU type:"
-echo "  1. NVIDIA  (proprietary nvidia-open drivers, for CachyOS kernel)"
-echo "  2. AMD     (open drivers, included in kernel)"
-echo "  3. Intel   (open drivers, included in kernel)"
-echo "  4. Skip    (manual setup)"
+echo "  [1] NVIDIA  (proprietary nvidia-open drivers, for CachyOS kernel)"
+echo "  [2] AMD     (open drivers, included in kernel)"
+echo "  [3] Intel   (open drivers, included in kernel)"
+echo "  [4] Skip    (manual setup)"
 while true; do
     read -r -p "Choice (1-4): " gpu_choice
     case "$gpu_choice" in
@@ -194,8 +194,8 @@ done
 INSTALL_PRINTER=0
 echo ""
 echo "Printer support:"
-echo "  1. Yes"
-echo "  2. No"
+echo "  [1] Yes"
+echo "  [2] No"
 while true; do
     read -r -p "Choice (1-2): " c
     case "$c" in 1) INSTALL_PRINTER=1; break ;; 2) break ;; *) echo "1 or 2." ;; esac
@@ -205,8 +205,8 @@ done
 INSTALL_BT=0
 echo ""
 echo "Bluetooth:"
-echo "  1. Yes  (install bluez, blueman, enable service)"
-echo "  2. No"
+echo "  [1] Yes  (install bluez, blueman, enable service)"
+echo "  [2] No"
 while true; do
     read -r -p "Choice (1-2): " c
     case "$c" in 1) INSTALL_BT=1; break ;; 2) break ;; *) echo "1 or 2." ;; esac
@@ -216,9 +216,9 @@ done
 AUDIO_MODE="easyeffects"
 echo ""
 echo "Audio:"
-echo "  0. Skip"
-echo "  1. EasyEffects  (default, equalizer and effects)"
-echo "  2. Dolby Atmos  (PipeWire surround profile)"
+echo "  [0] Skip"
+echo "  [1] EasyEffects  (default, equalizer and effects)"
+echo "  [2] Dolby Atmos  (PipeWire surround profile)"
 while true; do
     read -r -p "Choice (0-2): " c
     case "$c" in
@@ -232,20 +232,20 @@ done
 # ── Gaming ────────────────────────────────────────────────────────────────────
 GAMING_PKGS=()
 echo ""
-echo "Gaming packages (comma/space separated, a=all, 0=skip):"
-echo "   1. steam"
-echo "   2. mangohud"
-echo "   3. protonplus"
-echo "   4. wine"
-echo "   5. winetricks"
-echo "   6. protontricks"
-echo "   7. lutris"
-echo "   8. heroic-games-launcher-bin"
-echo "   9. prismlauncher"
-echo "  10. goverlay"
-echo "  11. mangojuice"
-echo "   a. Install all"
-echo "   0. Skip"
+echo "Gaming packages (comma/space separated, [a]=all, [0]=skip):"
+echo "   [1] steam"
+echo "   [2] mangohud"
+echo "   [3] protonplus"
+echo "   [4] wine"
+echo "   [5] winetricks"
+echo "   [6] protontricks"
+echo "   [7] lutris"
+echo "   [8] heroic-games-launcher-bin"
+echo "   [9] prismlauncher"
+echo "  [10] goverlay"
+echo "  [11] mangojuice"
+echo "   [a] Install all"
+echo "   [0] Skip"
 read -r -p "Choice: " gaming_choices
 if [ -n "$gaming_choices" ] && [ "$gaming_choices" != "0" ]; then
     [[ "$gaming_choices" =~ ^[aA]$ ]] && gaming_choices="1 2 3 4 5 6 7 8 9 10 11"
@@ -272,14 +272,14 @@ fi
 # ── Audio/Video players ───────────────────────────────────────────────────────
 AV_PKGS=()
 echo ""
-echo "Audio/Video players (comma/space separated, a=all, 0=skip):"
-echo "  1. mpv        (lightweight, command line)"
-echo "  2. vlc        (versatile)"
-echo "  3. haruna     (KDE, modern)"
-echo "  4. deadbeef   (music, modular)"
-echo "  5. rhythmbox  (GNOME, music)"
-echo "  a. Install all"
-echo "  0. Skip"
+echo "Audio/Video players (comma/space separated, [a]=all, [0]=skip):"
+echo "  [1] mpv        (lightweight, command line)"
+echo "  [2] vlc        (versatile)"
+echo "  [3] haruna     (KDE, modern)"
+echo "  [4] deadbeef   (music, modular)"
+echo "  [5] rhythmbox  (GNOME, music)"
+echo "  [a] Install all"
+echo "  [0] Skip"
 read -r -p "Choice: " av_choices
 if [ -n "$av_choices" ] && [ "$av_choices" != "0" ]; then
     [[ "$av_choices" =~ ^[aA]$ ]] && av_choices="1 2 3 4 5"
@@ -299,12 +299,12 @@ fi
 BROWSER=0
 echo ""
 echo "Browser:"
-echo "  1. Brave"
-echo "  2. Firefox"
-echo "  3. LibreWolf"
-echo "  4. Vivaldi"
-echo "  5. Zen Browser"
-echo "  0. Skip"
+echo "  [1] Brave"
+echo "  [2] Firefox"
+echo "  [3] LibreWolf"
+echo "  [4] Vivaldi"
+echo "  [5] Zen Browser"
+echo "  [0] Skip"
 while true; do
     read -r -p "Choice (0-5): " c
     case "$c" in 0|1|2|3|4|5) BROWSER=$c; break ;; *) echo "0-5." ;; esac
@@ -313,8 +313,8 @@ done
 # ── Cosmic Store ──────────────────────────────────────────────────────────────
 echo ""
 echo "Cosmic Store (Flatpak app store with modern UI):"
-echo "  1. Yes  (install cosmic-store, configure Flathub with full permissions)"
-echo "  2. No"
+echo "  [1] Yes  (install cosmic-store, configure Flathub with full permissions)"
+echo "  [2] No"
 while true; do
     read -r -p "Choice (1-2): " c
     case "$c" in 1) INSTALL_COSMIC_STORE=1; break ;; 2) break ;; *) echo "1 or 2." ;; esac
@@ -324,8 +324,8 @@ done
 INSTALL_LAPTOP=0
 echo ""
 echo "Laptop components (battery and power management):"
-echo "  1. Yes  (install auto-cpufreq, enable battery management service)"
-echo "  2. No"
+echo "  [1] Yes  (install auto-cpufreq, enable battery management service)"
+echo "  [2] No"
 while true; do
     read -r -p "Choice (1-2): " c
     case "$c" in 1) INSTALL_LAPTOP=1; break ;; 2) break ;; *) echo "1 or 2." ;; esac
@@ -335,8 +335,8 @@ done
 INSTALL_DDCUTIL=0
 echo ""
 echo "ddcutil (monitor brightness control via DDC/CI):"
-echo "  1. Yes"
-echo "  2. No"
+echo "  [1] Yes"
+echo "  [2] No"
 while true; do
     read -r -p "Choice (1-2): " c
     case "$c" in 1) INSTALL_DDCUTIL=1; break ;; 2) break ;; *) echo "1 or 2." ;; esac
