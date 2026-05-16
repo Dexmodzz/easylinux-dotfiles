@@ -597,8 +597,28 @@ msg "Regenerating initramfs..."
 run mkinitcpio -P
 
 # Bootloader detection
-if [ -f /etc/limine/limine.conf ] || [ -f /boot/limine/limine.conf ]; then
-    info "Limine detected — it will automatically pick up the new kernel on reboot."
+_limine_conf=""
+[ -f /etc/limine/limine.conf ]  && _limine_conf="/etc/limine/limine.conf"
+[ -f /boot/limine/limine.conf ] && _limine_conf="/boot/limine/limine.conf"
+[ -f /boot/limine.conf ]        && _limine_conf="/boot/limine.conf"
+
+if [ -n "$_limine_conf" ]; then
+    msg "Updating limine.conf for bore kernel..."
+    _root_uuid=$(blkid -s UUID -o value "$(findmnt -n -o SOURCE /)" 2>/dev/null || true)
+    _timeout=$(grep -m1 '^timeout:' "$_limine_conf" 2>/dev/null | awk '{print $2}')
+    [ -z "$_timeout" ] && _timeout="5"
+    _cmdline="root=UUID=${_root_uuid} rw quiet splash"
+    [ "$GPU_MODE" = "nvidia" ] && _cmdline="$_cmdline nvidia_drm.modeset=1"
+    run tee "$_limine_conf" >/dev/null << LIMEOF
+timeout: $_timeout
+
+:CachyOS Linux (bore)
+    protocol: linux
+    path: boot():///vmlinuz-linux-cachyos-bore
+    module_path: boot():///initramfs-linux-cachyos-bore.img
+    cmdline: $_cmdline
+LIMEOF
+    info "limine.conf updated — root=UUID=$_root_uuid"
 elif [ -f /boot/grub/grub.cfg ]; then
     msg "GRUB detected — updating grub.cfg..."
     run update-grub
@@ -704,6 +724,17 @@ run systemctl enable sddm
 [ "$INSTALL_BT"      -eq 1 ] && run systemctl enable bluetooth    || true
 [ "$INSTALL_LAPTOP"  -eq 1 ] && run systemctl enable auto-cpufreq || true
 run systemctl enable plymouth-quit-wait.service 2>/dev/null        || true
+
+msg "Configuring SDDM for Wayland..."
+run mkdir -p /etc/sddm.conf.d
+tee /etc/sddm.conf.d/hyprland.conf >/dev/null << 'SDDMEOF'
+[General]
+DisplayServer=wayland
+
+[Wayland]
+CompositorCommand=Hyprland
+SDDMEOF
+info "SDDM Wayland configuration written"
 STATUS_SERVICES=1
 
 # ═════════════════════════════════════════════════════════════════════════════
