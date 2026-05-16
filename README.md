@@ -238,7 +238,6 @@ Inspired by [minimaLinux](https://github.com/Echilonvibin/minimaLinux) by **Echi
 | 🐧 CachyOS | https://cachyos.org |
 | 🔵 Noctalia Shell | https://github.com/nicheface/noctalia-shell |
 | :octocat: minimaLinux | https://github.com/Echilonvibin/minimaLinux |
-|    minimaLinux | https://github.com/Echilonvibin/minimaLinux |
 ---
 
 <div align="center">
