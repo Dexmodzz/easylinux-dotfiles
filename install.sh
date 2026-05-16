@@ -31,6 +31,7 @@ STATUS_PKGS=0       # 1=ok 2=warn
 STATUS_AUR=0
 STATUS_SERVICES=0
 STATUS_FLATHUB=0
+STATUS_CACHYOS=0
 STATUS_DDCUTIL=0
 STATUS_LAPTOP=0
 STATUS_DOTFILES=0
@@ -512,7 +513,71 @@ esac
 )
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 1 9 "Installazione pacchetti"
+section 1 10 "Repository CachyOS e kernel bore"
+# ═════════════════════════════════════════════════════════════════════════════
+
+msg "Aggiungo i repository CachyOS ufficiali..."
+_cachyos_tmp="/tmp/cachyos-repo-setup"
+rm -rf "$_cachyos_tmp" && mkdir -p "$_cachyos_tmp"
+(
+    cd "$_cachyos_tmp"
+    if ! run curl -O https://mirror.cachyos.org/cachyos-repo.tar.xz; then
+        error "Download cachyos-repo.tar.xz fallito."
+        exit 1
+    fi
+    run tar xvf cachyos-repo.tar.xz
+    cd cachyos-repo
+    if ! run bash ./cachyos-repo.sh; then
+        error "cachyos-repo.sh fallito — impossibile continuare senza i repository CachyOS."
+        exit 1
+    fi
+) || { error "Setup repository CachyOS fallito."; exit 1; }
+rm -rf "$_cachyos_tmp"
+
+# Rileva quale repo è stato aggiunto
+_cachyos_repo_added="cachyos (generico)"
+grep -q "\[cachyos-v3\]" /etc/pacman.conf 2>/dev/null && _cachyos_repo_added="cachyos-v3 (CPU con AVX2)"
+grep -q "\[cachyos-v4\]" /etc/pacman.conf 2>/dev/null && _cachyos_repo_added="cachyos-v4 (CPU con AVX-512)"
+msg "Repository aggiunto: $_cachyos_repo_added"
+
+msg "Aggiorno lista pacchetti..."
+run pacman -Sy
+
+msg "Installo linux-cachyos-bore e headers..."
+if ! run pacman -S --needed --noconfirm linux-cachyos-bore linux-cachyos-bore-headers; then
+    error "Installazione kernel linux-cachyos-bore fallita."
+    exit 1
+fi
+
+_bore_repo=$(pacman -Qi linux-cachyos-bore 2>/dev/null | awk -F': ' '/^Repository/{gsub(/^ +/,"",$2); print $2}')
+[ -z "$_bore_repo" ] && _bore_repo="(non disponibile)"
+echo ""
+printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
+printf "${CYAN}${BOLD}║        KERNEL INSTALLATO                     ║${ALL_OFF}\n"
+printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Kernel"     "linux-cachyos-bore"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Repository" "$_bore_repo"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30.30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Repo CPU"   "$_cachyos_repo_added"
+printf "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${ALL_OFF}\n"
+echo ""
+STATUS_CACHYOS=1
+
+msg "Rigenero initramfs..."
+run mkinitcpio -P
+
+# Bootloader
+if [ -f /etc/limine/limine.conf ] || [ -f /boot/limine/limine.conf ]; then
+    info "Limine rilevato — rileverà automaticamente il nuovo kernel al riavvio."
+elif [ -f /boot/grub/grub.cfg ]; then
+    msg "GRUB rilevato — aggiorno grub.cfg..."
+    run update-grub
+    msg "grub.cfg aggiornato."
+else
+    warn "Bootloader non rilevato automaticamente — aggiorna manualmente la configurazione di boot per includere linux-cachyos-bore."
+fi
+
+# ═════════════════════════════════════════════════════════════════════════════
+section 2 10 "Installazione pacchetti"
 # ═════════════════════════════════════════════════════════════════════════════
 
 msg "Aggiorno il sistema..."
@@ -548,7 +613,7 @@ fi
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 2 9 "Pacchetti AUR con yay"
+section 3 10 "Pacchetti AUR con yay"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if ! command -v yay &>/dev/null; then
@@ -597,7 +662,7 @@ case "$BROWSER" in
 esac
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 3 9 "Servizi di sistema"
+section 4 10 "Servizi di sistema"
 # ═════════════════════════════════════════════════════════════════════════════
 
 msg "Abilito servizi..."
@@ -611,7 +676,7 @@ run systemctl enable plymouth-quit-wait.service 2>/dev/null                 || t
 STATUS_SERVICES=1
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 4 9 "Flatpak e Flathub"
+section 5 10 "Flatpak e Flathub"
 # ═════════════════════════════════════════════════════════════════════════════
 
 msg "Aggiungo Flathub remote..."
@@ -636,7 +701,7 @@ if [ "$INSTALL_COSMIC_STORE" -eq 1 ]; then
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 5 9 "ddcutil"
+section 6 10 "ddcutil"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if [ "$INSTALL_DDCUTIL" -eq 1 ]; then
@@ -656,7 +721,7 @@ else
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 6 9 "Shell predefinita"
+section 7 10 "Shell predefinita"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if command -v fish &>/dev/null; then
@@ -666,7 +731,7 @@ if command -v fish &>/dev/null; then
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 7 9 "Deploy dotfiles"
+section 8 10 "Deploy dotfiles"
 # ═════════════════════════════════════════════════════════════════════════════
 
 CONFIG_SRC="$SCRIPT_DIR/.config"
@@ -727,7 +792,7 @@ msg "Permessi script hyprland..."
 STATUS_DOTFILES=1
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 8 9 "Tema GTK e Qt"
+section 9 10 "Tema GTK e Qt"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if command -v gsettings &>/dev/null; then
@@ -752,7 +817,7 @@ QT_STYLE_OVERRIDE=Breeze
 ENV
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 9 9 "Thunar e directory utente"
+section 10 10 "Thunar e directory utente"
 # ═════════════════════════════════════════════════════════════════════════════
 
 run sudo -u "$ACTUAL_USER" xdg-user-dirs-update || true
@@ -801,6 +866,7 @@ echo ""
 printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
 printf "${CYAN}${BOLD}║           RIEPILOGO INSTALLAZIONE            ║${ALL_OFF}\n"
 printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_CACHYOS)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Repository CachyOS + kernel bore"
 printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_PKGS)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Pacchetti core"
 printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_AUR)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Pacchetti AUR (noctalia, vscodium)"
 printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_SERVICES)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Servizi di sistema (sddm, NM...)"
