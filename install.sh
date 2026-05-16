@@ -144,6 +144,28 @@ if [ "$FREE_GB" -lt 10 ]; then
 fi
 info "Disk space OK: ${FREE_GB}GB free"
 
+msg "Checking /boot partition space..."
+BOOT_FREE_MB=$(df -BM /boot --output=avail 2>/dev/null | tail -1 | tr -d 'M ')
+if [ -z "$BOOT_FREE_MB" ] || ! [[ "$BOOT_FREE_MB" =~ ^[0-9]+$ ]]; then
+    warn "/boot partition not detected — skipping boot space check."
+elif [ "$BOOT_FREE_MB" -lt 600 ]; then
+    echo "" >&2
+    printf "${RED}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n" >&2
+    printf "${RED}${BOLD}║   ✗  /boot PARTITION TOO SMALL               ║${ALL_OFF}\n" >&2
+    printf "${RED}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n" >&2
+    printf "${RED}${BOLD}║${ALL_OFF}  CachyOS bore kernel + headers + initramfs   ${RED}${BOLD}║${ALL_OFF}\n" >&2
+    printf "${RED}${BOLD}║${ALL_OFF}  requires at least 600MB free on /boot.      ${RED}${BOLD}║${ALL_OFF}\n" >&2
+    printf "${RED}${BOLD}║${ALL_OFF}                                              ${RED}${BOLD}║${ALL_OFF}\n" >&2
+    printf "${RED}${BOLD}║${ALL_OFF}  Your /boot has only ${RED}${BOLD}%dMB${ALL_OFF} available.$(printf '%*s' $((14 - ${#BOOT_FREE_MB})) '') ${RED}${BOLD}║${ALL_OFF}\n" "$BOOT_FREE_MB" >&2
+    printf "${RED}${BOLD}║${ALL_OFF}                                              ${RED}${BOLD}║${ALL_OFF}\n" >&2
+    printf "${RED}${BOLD}║${ALL_OFF}  Reinstall CachyOS and set /boot to at       ${RED}${BOLD}║${ALL_OFF}\n" >&2
+    printf "${RED}${BOLD}║${ALL_OFF}  least 750MB before running this script.     ${RED}${BOLD}║${ALL_OFF}\n" >&2
+    printf "${RED}${BOLD}╚══════════════════════════════════════════════╝${ALL_OFF}\n" >&2
+    echo "" >&2
+    exit 1
+fi
+info "/boot space OK: ${BOOT_FREE_MB}MB free"
+
 # Detect the real (non-root) user
 if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
     ACTUAL_USER="$SUDO_USER"
