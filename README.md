@@ -57,6 +57,7 @@
 Before running the script, make sure you have:
 
 - A **fresh CachyOS base installation** (recommended) or any Arch-based distro
+- A larger /boot partition (750MB recommended).
 - An active **internet connection**
 - At least **10 GB of free disk space**
 - The script must be run as root via `sudo`
