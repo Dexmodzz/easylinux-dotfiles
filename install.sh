@@ -160,12 +160,12 @@ INSTALL_COSMIC_STORE=0
 echo ""
 info "Utente: $ACTUAL_USER  |  Home: $ACTUAL_USER_HOME"
 echo ""
-echo "Questo script installa un clone completo del sistema (CachyOS + KDE + Hyprland + Noctalia)."
-warn "Usare SOLO su una installazione fresca di CachyOS. Procedere a proprio rischio."
+echo "This script installs a complete system clone (CachyOS + KDE + Hyprland + Noctalia)."
+warn "Use ONLY on a fresh CachyOS installation. Proceed at your own risk."
 echo ""
 while true; do
-    read -r -p "Vuoi procedere? (s/n): " proceed
-    case "$proceed" in s|S|y|Y) break ;; n|N) echo "Annullato."; exit 0 ;; *) echo "s o n." ;; esac
+    read -r -p "Do you want to proceed? [y/n]: " proceed
+    case "$proceed" in y|Y) break ;; n|N) echo "Aborted."; exit 0 ;; *) echo "y or n." ;; esac
 done
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -174,65 +174,65 @@ section "Selezioni interattive"
 
 # ── GPU ───────────────────────────────────────────────────────────────────────
 GPU_MODE="none"
-echo "Tipo di GPU:"
-echo "  1. NVIDIA  (driver proprietari nvidia-open, per kernel CachyOS)"
-echo "  2. AMD     (driver open, inclusi nel kernel)"
-echo "  3. Intel   (driver open, inclusi nel kernel)"
-echo "  4. Salta   (gestione manuale)"
+echo "GPU type:"
+echo "  1. NVIDIA  (proprietary nvidia-open drivers, for CachyOS kernel)"
+echo "  2. AMD     (open drivers, included in kernel)"
+echo "  3. Intel   (open drivers, included in kernel)"
+echo "  4. Skip    (manual setup)"
 while true; do
-    read -r -p "Scelta (1-4): " gpu_choice
+    read -r -p "Choice (1-4): " gpu_choice
     case "$gpu_choice" in
         1) GPU_MODE="nvidia"; break ;;
         2) GPU_MODE="amd";    break ;;
         3) GPU_MODE="intel";  break ;;
         4) GPU_MODE="none";   break ;;
-        *) echo "Inserisci un numero da 1 a 4." ;;
+        *) echo "Enter a number from 1 to 4." ;;
     esac
 done
 
 # ── Stampante ─────────────────────────────────────────────────────────────────
 INSTALL_PRINTER=0
 echo ""
-echo "Supporto stampante:"
-echo "  1. Sì"
+echo "Printer support:"
+echo "  1. Yes"
 echo "  2. No"
 while true; do
-    read -r -p "Scelta (1-2): " c
-    case "$c" in 1) INSTALL_PRINTER=1; break ;; 2) break ;; *) echo "1 o 2." ;; esac
+    read -r -p "Choice (1-2): " c
+    case "$c" in 1) INSTALL_PRINTER=1; break ;; 2) break ;; *) echo "1 or 2." ;; esac
 done
 
 # ── Bluetooth ─────────────────────────────────────────────────────────────────
 INSTALL_BT=0
 echo ""
 echo "Bluetooth:"
-echo "  1. Sì  (installa bluez, blueman, abilita servizio)"
+echo "  1. Yes  (install bluez, blueman, enable service)"
 echo "  2. No"
 while true; do
-    read -r -p "Scelta (1-2): " c
-    case "$c" in 1) INSTALL_BT=1; break ;; 2) break ;; *) echo "1 o 2." ;; esac
+    read -r -p "Choice (1-2): " c
+    case "$c" in 1) INSTALL_BT=1; break ;; 2) break ;; *) echo "1 or 2." ;; esac
 done
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
 AUDIO_MODE="easyeffects"
 echo ""
 echo "Audio:"
-echo "  0. Salta"
-echo "  1. EasyEffects  (default, equalizzatore e effetti)"
-echo "  2. Dolby Atmos  (profilo PipeWire surround)"
+echo "  0. Skip"
+echo "  1. EasyEffects  (default, equalizer and effects)"
+echo "  2. Dolby Atmos  (PipeWire surround profile)"
 while true; do
-    read -r -p "Scelta (0-2): " c
+    read -r -p "Choice (0-2): " c
     case "$c" in
         0) AUDIO_MODE="none";           break ;;
         1|"") AUDIO_MODE="easyeffects"; break ;;
         2) AUDIO_MODE="dolby";          break ;;
-        *) echo "0, 1 o 2." ;;
+        *) echo "0, 1 or 2." ;;
     esac
 done
 
 # ── Gaming ────────────────────────────────────────────────────────────────────
 GAMING_PKGS=()
 echo ""
-echo "Pacchetti Gaming (separati da virgola/spazio, a=tutti, 0=salta):"
+echo "Gaming packages (comma/space separated, a=all, 0=skip):"
 echo "   1. steam"
 echo "   2. mangohud"
 echo "   3. protonplus"
@@ -244,9 +244,9 @@ echo "   8. heroic-games-launcher-bin"
 echo "   9. prismlauncher"
 echo "  10. goverlay"
 echo "  11. mangojuice"
-echo "   a. Installa tutti"
-echo "   0. Salta"
-read -r -p "Scelta: " gaming_choices
+echo "   a. Install all"
+echo "   0. Skip"
+read -r -p "Choice: " gaming_choices
 if [ -n "$gaming_choices" ] && [ "$gaming_choices" != "0" ]; then
     [[ "$gaming_choices" =~ ^[aA]$ ]] && gaming_choices="1 2 3 4 5 6 7 8 9 10 11"
     gaming_choices=$(echo "$gaming_choices" | tr ',' ' ')
@@ -272,15 +272,15 @@ fi
 # ── Player Audio/Video ────────────────────────────────────────────────────────
 AV_PKGS=()
 echo ""
-echo "Player Audio/Video (separati da virgola/spazio, a=tutti, 0=salta):"
-echo "  1. mpv        (leggero, riga di comando)"
+echo "Audio/Video players (comma/space separated, a=all, 0=skip):"
+echo "  1. mpv        (lightweight, command line)"
 echo "  2. vlc        (versatile)"
-echo "  3. haruna     (KDE, moderno)"
-echo "  4. deadbeef   (musica, modulare)"
-echo "  5. rhythmbox  (GNOME, musica)"
-echo "  a. Installa tutti"
-echo "  0. Salta"
-read -r -p "Scelta: " av_choices
+echo "  3. haruna     (KDE, modern)"
+echo "  4. deadbeef   (music, modular)"
+echo "  5. rhythmbox  (GNOME, music)"
+echo "  a. Install all"
+echo "  0. Skip"
+read -r -p "Choice: " av_choices
 if [ -n "$av_choices" ] && [ "$av_choices" != "0" ]; then
     [[ "$av_choices" =~ ^[aA]$ ]] && av_choices="1 2 3 4 5"
     av_choices=$(echo "$av_choices" | tr ',' ' ')
@@ -304,42 +304,42 @@ echo "  2. Firefox"
 echo "  3. LibreWolf"
 echo "  4. Vivaldi"
 echo "  5. Zen Browser"
-echo "  0. Salta"
+echo "  0. Skip"
 while true; do
-    read -r -p "Scelta (0-5): " c
+    read -r -p "Choice (0-5): " c
     case "$c" in 0|1|2|3|4|5) BROWSER=$c; break ;; *) echo "0-5." ;; esac
 done
 
 # ── Cosmic Store ──────────────────────────────────────────────────────────────
 echo ""
-echo "Cosmic Store (app store Flatpak con interfaccia grafica moderna):"
-echo "  1. Sì  (installa cosmic-store, configura Flathub con permessi completi)"
+echo "Cosmic Store (Flatpak app store with modern UI):"
+echo "  1. Yes  (install cosmic-store, configure Flathub with full permissions)"
 echo "  2. No"
 while true; do
-    read -r -p "Scelta (1-2): " c
-    case "$c" in 1) INSTALL_COSMIC_STORE=1; break ;; 2) break ;; *) echo "1 o 2." ;; esac
+    read -r -p "Choice (1-2): " c
+    case "$c" in 1) INSTALL_COSMIC_STORE=1; break ;; 2) break ;; *) echo "1 or 2." ;; esac
 done
 
 # ── Laptop ────────────────────────────────────────────────────────────────────
 INSTALL_LAPTOP=0
 echo ""
-echo "Componenti portatile (batteria e risparmio energetico):"
-echo "  1. Sì  (installa auto-cpufreq, abilita servizio gestione batteria)"
+echo "Laptop components (battery and power management):"
+echo "  1. Yes  (install auto-cpufreq, enable battery management service)"
 echo "  2. No"
 while true; do
-    read -r -p "Scelta (1-2): " c
-    case "$c" in 1) INSTALL_LAPTOP=1; break ;; 2) break ;; *) echo "1 o 2." ;; esac
+    read -r -p "Choice (1-2): " c
+    case "$c" in 1) INSTALL_LAPTOP=1; break ;; 2) break ;; *) echo "1 or 2." ;; esac
 done
 
 # ── ddcutil ───────────────────────────────────────────────────────────────────
 INSTALL_DDCUTIL=0
 echo ""
-echo "ddcutil (controllo luminosità monitor via DDC/CI):"
-echo "  1. Sì"
+echo "ddcutil (monitor brightness control via DDC/CI):"
+echo "  1. Yes"
 echo "  2. No"
 while true; do
-    read -r -p "Scelta (1-2): " c
-    case "$c" in 1) INSTALL_DDCUTIL=1; break ;; 2) break ;; *) echo "1 o 2." ;; esac
+    read -r -p "Choice (1-2): " c
+    case "$c" in 1) INSTALL_DDCUTIL=1; break ;; 2) break ;; *) echo "1 or 2." ;; esac
 done
 
 # ── Box riepilogo scelte ───────────────────────────────────────────────────────
@@ -355,30 +355,30 @@ case "$AUDIO_MODE" in easyeffects) _audio_label="EasyEffects" ;; dolby) _audio_l
 _gaming_label="Nessuno"
 [ "${#GAMING_PKGS[@]}" -gt 0 ] && _gaming_label="${GAMING_PKGS[*]}"
 
-_bt_label="No";      [ "$INSTALL_BT"      -eq 1 ] && _bt_label="Sì"
-_printer_label="No"; [ "$INSTALL_PRINTER"  -eq 1 ] && _printer_label="Sì"
-_ddcutil_label="No"; [ "$INSTALL_DDCUTIL"  -eq 1 ] && _ddcutil_label="Sì"
-_cosmic_label="No";  [ "$INSTALL_COSMIC_STORE" -eq 1 ] && _cosmic_label="Sì"
-_laptop_label="No";  [ "$INSTALL_LAPTOP"   -eq 1 ] && _laptop_label="Sì (auto-cpufreq)"
+_bt_label="No";      [ "$INSTALL_BT"      -eq 1 ] && _bt_label="Yes"
+_printer_label="No"; [ "$INSTALL_PRINTER"  -eq 1 ] && _printer_label="Yes"
+_ddcutil_label="No"; [ "$INSTALL_DDCUTIL"  -eq 1 ] && _ddcutil_label="Yes"
+_cosmic_label="No";  [ "$INSTALL_COSMIC_STORE" -eq 1 ] && _cosmic_label="Yes"
+_laptop_label="No";  [ "$INSTALL_LAPTOP"   -eq 1 ] && _laptop_label="Yes (auto-cpufreq)"
 
 echo ""
 printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
-printf "${CYAN}${BOLD}║       RIEPILOGO INSTALLAZIONE                ║${ALL_OFF}\n"
+printf "${CYAN}${BOLD}║       INSTALLATION SUMMARY                   ║${ALL_OFF}\n"
 printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "GPU"        "$_gpu_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Browser"    "$_browser_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Audio"      "$_audio_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30.30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Gaming"     "$_gaming_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Bluetooth"  "$_bt_label"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Stampante"  "$_printer_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Printer"    "$_printer_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "ddcutil"    "$_ddcutil_label"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Portatile"  "$_laptop_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Laptop"     "$_laptop_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "CosmicStore" "$_cosmic_label"
 printf "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${ALL_OFF}\n"
 echo ""
 while true; do
-    read -r -p "Confermi e avvii l'installazione? (s/n): " confirm
-    case "$confirm" in s|S|y|Y) break ;; n|N) echo "Annullato."; exit 0 ;; *) echo "s o n." ;; esac
+    read -r -p "Confirm and start installation? [y/n]: " confirm
+    case "$confirm" in y|Y) break ;; n|N) echo "Aborted."; exit 0 ;; *) echo "y or n." ;; esac
 done
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -895,10 +895,10 @@ printf "      ${YELLOW}source = ~/.config/hypr/themes/theme.conf${ALL_OFF}\n"
 printf "      ${YELLOW}source = ~/.config/hypr/noctalia/noctalia-colors.conf${ALL_OFF}\n\n"
 
 while true; do
-    read -r -p "Riavviare ora? (s/n): " r
+    read -r -p "Reboot now? [y/n]: " r
     case "$r" in
-        s|S|y|Y) echo "Riavvio..."; reboot now; break ;;
-        n|N) printf "\n${YELLOW}Ricordati di riavviare!${ALL_OFF}\n"; break ;;
-        *) echo "s o n." ;;
+        y|Y) echo "Rebooting..."; reboot now; break ;;
+        n|N) printf "\n${YELLOW}Remember to reboot!${ALL_OFF}\n"; break ;;
+        *) echo "y or n." ;;
     esac
 done
