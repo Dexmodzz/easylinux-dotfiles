@@ -53,6 +53,7 @@ run() {
     fi
 }
 
+ALL_OFF="" BOLD="" RED="" GREEN="" YELLOW="" BLUE="" MAGENTA="" CYAN=""
 disable_colors() { unset ALL_OFF BOLD BLUE GREEN RED YELLOW CYAN MAGENTA; }
 enable_colors() {
     if tput setaf 0 &>/dev/null; then
@@ -66,7 +67,9 @@ enable_colors() {
     fi
     readonly ALL_OFF BOLD BLUE GREEN RED YELLOW CYAN MAGENTA
 }
-[[ -t 2 ]] && enable_colors || disable_colors
+if [[ -t 2 ]] && command -v tput &>/dev/null && [[ $(tput colors 2>/dev/null) -ge 8 ]]; then
+    enable_colors
+fi
 
 msg()   { printf "${GREEN}▶${ALL_OFF}${BOLD} %s${ALL_OFF}\n" "$*" >&2; }
 info()  { printf "${YELLOW}  • %s${ALL_OFF}\n" "$*" >&2; }
