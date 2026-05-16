@@ -1,6 +1,6 @@
 <div align="center">
 
-![EasyLinux](easylinux-banner.png)
+![EasyLinux](assets/easylinux-banner.png)
 
 </div>
 
@@ -40,9 +40,9 @@
 
 ### Screenshot
 
-![Screenshot](desktop.png)
+![Screenshot](/assets/desktop.png)
 
-> Replace this placeholder with a real screenshot of your desktop.
+
 
 ---
 
