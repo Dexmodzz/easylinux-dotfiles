@@ -859,11 +859,11 @@ info "Pictures directory: $PICTURES_DIR"
 
 msg "Setting up wallpapers..."
 
-if [ ! -d "$SCRIPT_DIR/wallpapers" ]; then
+if [ ! -d "$SCRIPT_DIR/Wallpapers" ]; then
     warn "No wallpapers/ folder found in $SCRIPT_DIR — skipping wallpaper setup."
 else
     run sudo -u "$ACTUAL_USER" mkdir -p "$WALLPAPER_DIR"
-    run cp -rf "$SCRIPT_DIR/wallpapers/"* "$WALLPAPER_DIR/"
+    run cp -rf "$SCRIPT_DIR/Wallpapers/"* "$WALLPAPER_DIR/"
     run chown -R "$ACTUAL_USER:$ACTUAL_USER" "$WALLPAPER_DIR"
     info "Wallpapers copied to $WALLPAPER_DIR"
 
