@@ -36,6 +36,7 @@ STATUS_DDCUTIL=0
 STATUS_LAPTOP=0
 STATUS_DOTFILES=0
 STATUS_GTK=0
+STATUS_WALLPAPER=0
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 append_unique_package() {
@@ -419,7 +420,7 @@ PACKAGES=(
     kscreen kwalletmanager kwallet-pam
 
     # Hyprland
-    hyprland hyprland-protocols hyprlock hypridle hyprshot uwsm
+    hyprland hyprland-protocols hyprlock hypridle hyprshot hyprpaper uwsm
     xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
 
     # Shell and terminal
@@ -516,7 +517,7 @@ esac
 )
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 1 10 "CachyOS repositories and bore kernel"
+section 1 11 "CachyOS repositories and bore kernel"
 # ═════════════════════════════════════════════════════════════════════════════
 
 msg "Adding official CachyOS repositories..."
@@ -580,7 +581,7 @@ else
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 2 10 "Package installation"
+section 2 11 "Package installation"
 # ═════════════════════════════════════════════════════════════════════════════
 
 msg "Updating system..."
@@ -616,7 +617,7 @@ fi
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 3 10 "AUR packages with yay"
+section 3 11 "AUR packages with yay"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if ! command -v yay &>/dev/null; then
@@ -665,7 +666,7 @@ case "$BROWSER" in
 esac
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 4 10 "System services"
+section 4 11 "System services"
 # ═════════════════════════════════════════════════════════════════════════════
 
 msg "Enabling services..."
@@ -679,7 +680,7 @@ run systemctl enable plymouth-quit-wait.service 2>/dev/null        || true
 STATUS_SERVICES=1
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 5 10 "Flatpak and Flathub"
+section 5 11 "Flatpak and Flathub"
 # ═════════════════════════════════════════════════════════════════════════════
 
 msg "Adding Flathub remote..."
@@ -704,7 +705,7 @@ if [ "$INSTALL_COSMIC_STORE" -eq 1 ]; then
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 6 10 "ddcutil"
+section 6 11 "ddcutil"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if [ "$INSTALL_DDCUTIL" -eq 1 ]; then
@@ -724,7 +725,7 @@ else
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 7 10 "Default shell"
+section 7 11 "Default shell"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if command -v fish &>/dev/null; then
@@ -734,7 +735,7 @@ if command -v fish &>/dev/null; then
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 8 10 "Deploy dotfiles"
+section 8 11 "Deploy dotfiles"
 # ═════════════════════════════════════════════════════════════════════════════
 
 CONFIG_SRC="$SCRIPT_DIR/.config"
@@ -795,7 +796,7 @@ msg "Setting Hyprland script permissions..."
 STATUS_DOTFILES=1
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 9 10 "GTK and Qt theme"
+section 9 11 "GTK and Qt theme"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if command -v gsettings &>/dev/null; then
@@ -820,7 +821,7 @@ QT_STYLE_OVERRIDE=Breeze
 ENV
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 10 10 "Thunar and user directories"
+section 10 11 "Thunar and user directories"
 # ═════════════════════════════════════════════════════════════════════════════
 
 run sudo -u "$ACTUAL_USER" xdg-user-dirs-update || true
@@ -844,6 +845,50 @@ EOF
     run chown -R "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR/pipewire"
     msg "Dolby PipeWire profile applied"
 }
+
+# ═════════════════════════════════════════════════════════════════════════════
+section 11 11 "Wallpaper setup"
+# ═════════════════════════════════════════════════════════════════════════════
+
+_sys_locale=$(grep '^LANG=' /etc/locale.conf 2>/dev/null | cut -d= -f2 | tr -d '"' || echo "unknown")
+info "System locale: $_sys_locale"
+
+PICTURES_DIR=$(sudo -u "$ACTUAL_USER" xdg-user-dir PICTURES 2>/dev/null || echo "$ACTUAL_USER_HOME/Pictures")
+WALLPAPER_DIR="$PICTURES_DIR/wallpapers"
+info "Pictures directory: $PICTURES_DIR"
+
+msg "Setting up wallpapers..."
+
+if [ ! -d "$SCRIPT_DIR/wallpapers" ]; then
+    warn "No wallpapers/ folder found in $SCRIPT_DIR — skipping wallpaper setup."
+else
+    run sudo -u "$ACTUAL_USER" mkdir -p "$WALLPAPER_DIR"
+    run cp -rf "$SCRIPT_DIR/wallpapers/"* "$WALLPAPER_DIR/"
+    run chown -R "$ACTUAL_USER:$ACTUAL_USER" "$WALLPAPER_DIR"
+    info "Wallpapers copied to $WALLPAPER_DIR"
+
+    if [ "$DRY_RUN" -eq 0 ] && [ -d "$WALLPAPER_DIR" ]; then
+        MAIN_WALLPAPER=$(find "$WALLPAPER_DIR" -maxdepth 1 -type f \
+            \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \
+               -o -iname "*.webp" -o -iname "*.gif" \) 2>/dev/null | sort | head -1)
+    else
+        MAIN_WALLPAPER=""
+    fi
+
+    if [ -z "$MAIN_WALLPAPER" ]; then
+        warn "No image files found in $WALLPAPER_DIR — hyprpaper.conf not written."
+    else
+        info "Main wallpaper: $(basename "$MAIN_WALLPAPER")"
+        run sudo -u "$ACTUAL_USER" mkdir -p "$CONFIG_DIR/hypr"
+        sudo -u "$ACTUAL_USER" tee "$CONFIG_DIR/hypr/hyprpaper.conf" >/dev/null << HPEOF
+preload = $MAIN_WALLPAPER
+wallpaper = ,$MAIN_WALLPAPER
+HPEOF
+        run chown "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR/hypr/hyprpaper.conf"
+        info "hyprpaper.conf written"
+        STATUS_WALLPAPER=1
+    fi
+fi
 
 # ═════════════════════════════════════════════════════════════════════════════
 # FINAL CHECKLIST + TIMER
@@ -876,6 +921,7 @@ printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_SERVICES)   %-38s ${CY
 printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_FLATHUB)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Flatpak / Flathub"
 printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_DOTFILES)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Dotfiles deployed"
 printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_GTK)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "GTK / Qt / gsettings theme"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_WALLPAPER)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Wallpaper setup"
 if [ "$INSTALL_DDCUTIL" -eq 1 ]; then
 printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_DDCUTIL)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "ddcutil (DDC/CI monitor control)"
 fi
