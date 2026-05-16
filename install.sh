@@ -420,7 +420,7 @@ PACKAGES=(
     kscreen kwalletmanager kwallet-pam
 
     # Hyprland
-    hyprland hyprland-protocols hyprlock hypridle hyprshot hyprpaper uwsm
+    hyprland hyprland-protocols hyprlock hypridle hyprshot uwsm
     xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
 
     # Shell and terminal
@@ -854,7 +854,7 @@ _sys_locale=$(grep '^LANG=' /etc/locale.conf 2>/dev/null | cut -d= -f2 | tr -d '
 info "System locale: $_sys_locale"
 
 PICTURES_DIR=$(sudo -u "$ACTUAL_USER" xdg-user-dir PICTURES 2>/dev/null || echo "$ACTUAL_USER_HOME/Pictures")
-WALLPAPER_DIR="$PICTURES_DIR/wallpapers"
+WALLPAPER_DIR="$PICTURES_DIR/Wallpapers"
 info "Pictures directory: $PICTURES_DIR"
 
 msg "Setting up wallpapers..."
@@ -867,26 +867,20 @@ else
     run chown -R "$ACTUAL_USER:$ACTUAL_USER" "$WALLPAPER_DIR"
     info "Wallpapers copied to $WALLPAPER_DIR"
 
-    if [ "$DRY_RUN" -eq 0 ] && [ -d "$WALLPAPER_DIR" ]; then
-        MAIN_WALLPAPER=$(find "$WALLPAPER_DIR" -maxdepth 1 -type f \
-            \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \
-               -o -iname "*.webp" -o -iname "*.gif" \) 2>/dev/null | sort | head -1)
-    else
-        MAIN_WALLPAPER=""
-    fi
-
-    if [ -z "$MAIN_WALLPAPER" ]; then
-        warn "No image files found in $WALLPAPER_DIR — hyprpaper.conf not written."
-    else
-        info "Main wallpaper: $(basename "$MAIN_WALLPAPER")"
-        run sudo -u "$ACTUAL_USER" mkdir -p "$CONFIG_DIR/hypr"
-        sudo -u "$ACTUAL_USER" tee "$CONFIG_DIR/hypr/hyprpaper.conf" >/dev/null << HPEOF
-preload = $MAIN_WALLPAPER
-wallpaper = ,$MAIN_WALLPAPER
-HPEOF
-        run chown "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR/hypr/hyprpaper.conf"
-        info "hyprpaper.conf written"
+    _noctalia_settings="$CONFIG_DIR/noctalia/settings.json"
+    if [ -f "$_noctalia_settings" ]; then
+        python3 - "$_noctalia_settings" "$WALLPAPER_DIR" <<'PY'
+import json, sys
+path, walldir = sys.argv[1], sys.argv[2]
+with open(path) as f: d = json.load(f)
+d.setdefault("wallpaper", {})["directory"] = walldir
+with open(path, "w") as f: json.dump(d, f, indent=4); f.write("\n")
+PY
+        run chown "$ACTUAL_USER:$ACTUAL_USER" "$_noctalia_settings"
+        info "Noctalia wallpaper directory set to $WALLPAPER_DIR"
         STATUS_WALLPAPER=1
+    else
+        warn "settings.json not found — Noctalia wallpaper directory not updated."
     fi
 fi
 
