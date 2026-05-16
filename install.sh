@@ -1,12 +1,12 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────────
 #  noctalia-dotfiles — install.sh
-#  Clone completo del sistema su CachyOS base
-#  Basato su: https://github.com/Echilonvibin/minimaLinux
+#  Complete system clone on CachyOS base
+#  Based on: https://github.com/Echilonvibin/minimaLinux
 #
-#  USO:          sudo bash install.sh
+#  USAGE:        sudo bash install.sh
 #  DRY-RUN:      sudo bash install.sh --dry-run
-#  REQUISITI:    CachyOS installato (base o desktop), connessione internet
+#  REQUIREMENTS: CachyOS installed (base or desktop), internet connection
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -16,17 +16,17 @@ START_TIME=$(date +%s)
 export LC_MESSAGES=C
 export LANG=C
 
-# ── Dry-run flag ──────────────────────────────────────────────────────────────
+# ── Dry-run flag ───────────────────────────────────────────────────────────────
 DRY_RUN=0
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
 
-# ── Log file ──────────────────────────────────────────────────────────────────
+# ── Log file ───────────────────────────────────────────────────────────────────
 LOG_FILE="/tmp/noctalia-install-$(date +%Y%m%d-%H%M%S).log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
-# ── Tracking variabili per checklist finale ───────────────────────────────────
+# ── Status tracking for final checklist ───────────────────────────────────────
 STATUS_PKGS=0       # 1=ok 2=warn
 STATUS_AUR=0
 STATUS_SERVICES=0
@@ -37,14 +37,14 @@ STATUS_LAPTOP=0
 STATUS_DOTFILES=0
 STATUS_GTK=0
 
-# ── Utility ───────────────────────────────────────────────────────────────────
+# ── Utilities ─────────────────────────────────────────────────────────────────
 append_unique_package() {
     local -n _list="$1"; local _pkg="$2"
     for _p in "${_list[@]+"${_list[@]}"}"; do [ "$_p" = "$_pkg" ] && return 0; done
     _list+=("$_pkg")
 }
 
-# Wrapper per dry-run
+# Dry-run wrapper
 run() {
     if [ "$DRY_RUN" -eq 1 ]; then
         printf "${YELLOW}  [DRY-RUN]${ALL_OFF} %s\n" "$*" >&2
@@ -73,7 +73,7 @@ info()  { printf "${YELLOW}  • %s${ALL_OFF}\n" "$*" >&2; }
 warn()  { printf "${YELLOW}  ⚠ %s${ALL_OFF}\n" "$*" >&2; }
 error() { printf "${RED}  ✗ %s${ALL_OFF}\n" "$*" >&2; }
 
-# section STEP TOTAL TITLE  oppure  section TITLE (senza numerazione)
+# section STEP TOTAL TITLE  or  section TITLE (no numbering)
 section() {
     if [ "$#" -eq 3 ]; then
         echo ""
@@ -86,7 +86,7 @@ section() {
     fi
 }
 
-# Barra di progresso: progress_bar CURRENT TOTAL [LABEL]
+# Progress bar: progress_bar CURRENT TOTAL [LABEL]
 progress_bar() {
     local current=$1 total=$2 label="${3:-}"
     local width=38
@@ -111,54 +111,54 @@ cat << 'EOF'
   ██║ ╚████║╚██████╔╝╚██████╗   ██║   ██║  ██║███████╗██║██║  ██║
   ╚═╝  ╚═══╝ ╚═════╝  ╚═════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝╚═╝  ╚═╝
 
-     Clone completo — CachyOS · KDE · Hyprland · Noctalia Shell
+     Complete clone — CachyOS · KDE · Hyprland · Noctalia Shell
 EOF
 printf "${ALL_OFF}\n"
 
-[ "$DRY_RUN" -eq 1 ] && printf "${YELLOW}${BOLD}  *** MODALITÀ DRY-RUN: nessuna modifica verrà applicata ***${ALL_OFF}\n\n"
+[ "$DRY_RUN" -eq 1 ] && printf "${YELLOW}${BOLD}  *** DRY-RUN MODE: no changes will be applied ***${ALL_OFF}\n\n"
 info "Log: $LOG_FILE"
 echo ""
 
-# ── Controlli preliminari ─────────────────────────────────────────────────────
-[[ $EUID -ne 0 ]] && { echo "Esegui con: sudo bash install.sh"; exit 1; }
-[ ! -f /etc/pacman.conf ]      && { echo "ERRORE: /etc/pacman.conf non trovato."; exit 1; }
-[ ! -d "$SCRIPT_DIR/.config" ] && { echo "ERRORE: cartella .config non trovata in $SCRIPT_DIR"; exit 1; }
+# ── Preliminary checks ────────────────────────────────────────────────────────
+[[ $EUID -ne 0 ]] && { echo "Run with: sudo bash install.sh"; exit 1; }
+[ ! -f /etc/pacman.conf ]      && { echo "ERROR: /etc/pacman.conf not found."; exit 1; }
+[ ! -d "$SCRIPT_DIR/.config" ] && { echo "ERROR: .config folder not found in $SCRIPT_DIR"; exit 1; }
 
-msg "Verifico connessione internet..."
+msg "Checking internet connection..."
 if ! ping -c1 -W3 archlinux.org &>/dev/null; then
-    echo "ERRORE: nessuna connessione internet. Controlla la rete e riprova."
+    echo "ERROR: no internet connection. Check your network and try again."
     exit 1
 fi
-info "Connessione OK"
+info "Connection OK"
 
-msg "Verifico spazio disco..."
+msg "Checking disk space..."
 FREE_KB=$(df / --output=avail | tail -1)
 FREE_GB=$(( FREE_KB / 1024 / 1024 ))
 if [ "$FREE_GB" -lt 10 ]; then
-    echo "ERRORE: spazio libero insufficiente su / (${FREE_GB}GB disponibili, minimi 10GB)."
+    echo "ERROR: not enough free space on / (${FREE_GB}GB available, minimum 10GB required)."
     exit 1
 fi
-info "Spazio disco OK: ${FREE_GB}GB liberi"
+info "Disk space OK: ${FREE_GB}GB free"
 
-# Ricava l'utente reale
+# Detect the real (non-root) user
 if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
     ACTUAL_USER="$SUDO_USER"
 else
     ACTUAL_USER=$(logname 2>/dev/null || true)
 fi
 { [ -z "${ACTUAL_USER:-}" ] || [ "$ACTUAL_USER" = "root" ]; } && {
-    echo "ERRORE: impossibile determinare l'utente non-root. Usa: sudo bash install.sh"
+    echo "ERROR: cannot determine non-root user. Use: sudo bash install.sh"
     exit 1
 }
 ACTUAL_USER_HOME=$(getent passwd "$ACTUAL_USER" | cut -d: -f6)
-[ -z "$ACTUAL_USER_HOME" ] && { echo "ERRORE: home di $ACTUAL_USER non trovata."; exit 1; }
+[ -z "$ACTUAL_USER_HOME" ] && { echo "ERROR: home directory for $ACTUAL_USER not found."; exit 1; }
 
 CONFIG_DIR="$ACTUAL_USER_HOME/.config"
 DDCUTIL_ENABLED=0
 INSTALL_COSMIC_STORE=0
 
 echo ""
-info "Utente: $ACTUAL_USER  |  Home: $ACTUAL_USER_HOME"
+info "User: $ACTUAL_USER  |  Home: $ACTUAL_USER_HOME"
 echo ""
 echo "This script installs a complete system clone (CachyOS + KDE + Hyprland + Noctalia)."
 warn "Use ONLY on a fresh CachyOS installation. Proceed at your own risk."
@@ -169,7 +169,7 @@ while true; do
 done
 
 # ═════════════════════════════════════════════════════════════════════════════
-section "Selezioni interattive"
+section "Interactive setup"
 # ═════════════════════════════════════════════════════════════════════════════
 
 # ── GPU ───────────────────────────────────────────────────────────────────────
@@ -190,7 +190,7 @@ while true; do
     esac
 done
 
-# ── Stampante ─────────────────────────────────────────────────────────────────
+# ── Printer ───────────────────────────────────────────────────────────────────
 INSTALL_PRINTER=0
 echo ""
 echo "Printer support:"
@@ -269,7 +269,7 @@ if [ -n "$gaming_choices" ] && [ "$gaming_choices" != "0" ]; then
     done
 fi
 
-# ── Player Audio/Video ────────────────────────────────────────────────────────
+# ── Audio/Video players ───────────────────────────────────────────────────────
 AV_PKGS=()
 echo ""
 echo "Audio/Video players (comma/space separated, a=all, 0=skip):"
@@ -342,37 +342,37 @@ while true; do
     case "$c" in 1) INSTALL_DDCUTIL=1; break ;; 2) break ;; *) echo "1 or 2." ;; esac
 done
 
-# ── Box riepilogo scelte ───────────────────────────────────────────────────────
-_gpu_label="Salta (manuale)"
+# ── Summary box ───────────────────────────────────────────────────────────────
+_gpu_label="Skip (manual)"
 case "$GPU_MODE" in nvidia) _gpu_label="NVIDIA (nvidia-open)" ;; amd) _gpu_label="AMD (mesa/vulkan)" ;; intel) _gpu_label="Intel (vulkan-intel)" ;; esac
 
-_browser_label="Salta"
+_browser_label="Skip"
 case "$BROWSER" in 1) _browser_label="Brave Origin Nightly" ;; 2) _browser_label="Firefox" ;; 3) _browser_label="LibreWolf" ;; 4) _browser_label="Vivaldi" ;; 5) _browser_label="Zen Browser" ;; esac
 
-_audio_label="Salta"
+_audio_label="Skip"
 case "$AUDIO_MODE" in easyeffects) _audio_label="EasyEffects" ;; dolby) _audio_label="Dolby Atmos" ;; esac
 
-_gaming_label="Nessuno"
+_gaming_label="None"
 [ "${#GAMING_PKGS[@]}" -gt 0 ] && _gaming_label="${GAMING_PKGS[*]}"
 
-_bt_label="No";      [ "$INSTALL_BT"      -eq 1 ] && _bt_label="Yes"
-_printer_label="No"; [ "$INSTALL_PRINTER"  -eq 1 ] && _printer_label="Yes"
-_ddcutil_label="No"; [ "$INSTALL_DDCUTIL"  -eq 1 ] && _ddcutil_label="Yes"
-_cosmic_label="No";  [ "$INSTALL_COSMIC_STORE" -eq 1 ] && _cosmic_label="Yes"
-_laptop_label="No";  [ "$INSTALL_LAPTOP"   -eq 1 ] && _laptop_label="Yes (auto-cpufreq)"
+_bt_label="No";      [ "$INSTALL_BT"           -eq 1 ] && _bt_label="Yes"
+_printer_label="No"; [ "$INSTALL_PRINTER"       -eq 1 ] && _printer_label="Yes"
+_ddcutil_label="No"; [ "$INSTALL_DDCUTIL"       -eq 1 ] && _ddcutil_label="Yes"
+_cosmic_label="No";  [ "$INSTALL_COSMIC_STORE"  -eq 1 ] && _cosmic_label="Yes"
+_laptop_label="No";  [ "$INSTALL_LAPTOP"        -eq 1 ] && _laptop_label="Yes (auto-cpufreq)"
 
 echo ""
 printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
 printf "${CYAN}${BOLD}║       INSTALLATION SUMMARY                   ║${ALL_OFF}\n"
 printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "GPU"        "$_gpu_label"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Browser"    "$_browser_label"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Audio"      "$_audio_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "GPU"         "$_gpu_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Browser"     "$_browser_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Audio"       "$_audio_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30.30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Gaming"     "$_gaming_label"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Bluetooth"  "$_bt_label"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Printer"    "$_printer_label"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "ddcutil"    "$_ddcutil_label"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Laptop"     "$_laptop_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Bluetooth"   "$_bt_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Printer"     "$_printer_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "ddcutil"     "$_ddcutil_label"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Laptop"      "$_laptop_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "CosmicStore" "$_cosmic_label"
 printf "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${ALL_OFF}\n"
 echo ""
@@ -382,10 +382,10 @@ while true; do
 done
 
 # ═════════════════════════════════════════════════════════════════════════════
-# LISTA PACCHETTI — esportata dal sistema originale con: pacman -Qqe
+# PACKAGE LIST — exported from the original system with: pacman -Qqe
 # ═════════════════════════════════════════════════════════════════════════════
 PACKAGES=(
-    # Base sistema
+    # Base system
     base base-devel sudo vim nano less wget which
     man-db man-pages texinfo logrotate s-nail perl python
 
@@ -396,7 +396,7 @@ PACKAGES=(
     # Boot
     limine limine-mkinitcpio-hook update-grub os-prober plymouth
 
-    # Rete
+    # Network
     networkmanager networkmanager-openvpn iwd wpa_supplicant wireless_tools
     modemmanager bind dnsmasq nfs-utils inetutils ethtool
 
@@ -419,10 +419,10 @@ PACKAGES=(
     hyprland hyprland-protocols hyprlock hypridle hyprshot uwsm
     xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
 
-    # Shell e terminale
+    # Shell and terminal
     fish bash-completion kitty alacritty starship fastfetch
 
-    # Temi e aspetto
+    # Themes and appearance
     adw-gtk-theme bibata-cursor-theme yaru-icon-theme humanity-icon-theme
     qt5ct qt6ct qt5-wayland qt6-wayland
     noto-fonts noto-fonts-cjk noto-fonts-emoji
@@ -430,7 +430,7 @@ PACKAGES=(
     ttf-ms-fonts ttf-opensans ttf-symbola cantarell-fonts
     awesome-terminal-fonts
 
-    # Screenshot e utilità Wayland
+    # Screenshot and Wayland utilities
     grim slurp satty wofi
 
     # File manager
@@ -440,42 +440,42 @@ PACKAGES=(
     libgepub freetype2 ark file-roller
     gvfs gvfs-afc gvfs-mtp gvfs-smb
 
-    # App desktop
+    # Desktop apps
     gedit loupe gnome-calculator gnome-disk-utility
     nwg-look nwg-displays gcolor3 pinta
     flatpak xdg-user-dirs
 
-    # Sistema e strumenti
+    # System tools
     gnome-keyring polkit-gnome power-profiles-daemon cpupower upower
     smartmontools sysfsutils usb_modeswitch usbutils
     lsb-release reflector
 
-    # Build / sviluppo
+    # Build / development
     clang cmake go rust meson ninja pkgconf
 
-    # Archivi
+    # Archives
     unrar unzip 7zip
 
-    # Media / codec
+    # Media / codecs
     gst-plugins-good gst-plugins-ugly gst-libav gst-plugin-va
 
-    # Bluetooth (base, il servizio verrà abilitato dopo)
+    # Bluetooth (base; service enabled later if selected)
     bluez bluez-libs
 
-    # Aspell / dizionari
+    # Spell checkers
     aspell hspell libvoikko nuspell
 
     # Misc
     cava matugen gpu-screen-recorder mission-center dunst
 
-    # CachyOS specifici
+    # CachyOS-specific packages
     cachyos-hello cachyos-hooks cachyos-keyring cachyos-mirrorlist
     cachyos-packageinstaller cachyos-plymouth-bootanimation cachyos-plymouth-theme
     cachyos-rate-mirrors cachyos-settings cachyos-v3-mirrorlist cachyos-v4-mirrorlist
     chaotic-keyring chaotic-mirrorlist chwd
 )
 
-# GPU
+# GPU-specific packages
 case "$GPU_MODE" in
     nvidia)
         PACKAGES+=(
@@ -513,183 +513,183 @@ esac
 )
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 1 10 "Repository CachyOS e kernel bore"
+section 1 10 "CachyOS repositories and bore kernel"
 # ═════════════════════════════════════════════════════════════════════════════
 
-msg "Aggiungo i repository CachyOS ufficiali..."
+msg "Adding official CachyOS repositories..."
 _cachyos_tmp="/tmp/cachyos-repo-setup"
 rm -rf "$_cachyos_tmp" && mkdir -p "$_cachyos_tmp"
 (
     cd "$_cachyos_tmp"
     if ! run curl -O https://mirror.cachyos.org/cachyos-repo.tar.xz; then
-        error "Download cachyos-repo.tar.xz fallito."
+        error "Failed to download cachyos-repo.tar.xz."
         exit 1
     fi
     run tar xvf cachyos-repo.tar.xz
     cd cachyos-repo
     if ! run bash ./cachyos-repo.sh; then
-        error "cachyos-repo.sh fallito — impossibile continuare senza i repository CachyOS."
+        error "cachyos-repo.sh failed — cannot continue without CachyOS repositories."
         exit 1
     fi
-) || { error "Setup repository CachyOS fallito."; exit 1; }
+) || { error "CachyOS repository setup failed."; exit 1; }
 rm -rf "$_cachyos_tmp"
 
-# Rileva quale repo è stato aggiunto
-_cachyos_repo_added="cachyos (generico)"
-grep -q "\[cachyos-v3\]" /etc/pacman.conf 2>/dev/null && _cachyos_repo_added="cachyos-v3 (CPU con AVX2)"
-grep -q "\[cachyos-v4\]" /etc/pacman.conf 2>/dev/null && _cachyos_repo_added="cachyos-v4 (CPU con AVX-512)"
-msg "Repository aggiunto: $_cachyos_repo_added"
+# Detect which repo variant was added
+_cachyos_repo_added="cachyos (generic)"
+grep -q "\[cachyos-v3\]" /etc/pacman.conf 2>/dev/null && _cachyos_repo_added="cachyos-v3 (CPU with AVX2)"
+grep -q "\[cachyos-v4\]" /etc/pacman.conf 2>/dev/null && _cachyos_repo_added="cachyos-v4 (CPU with AVX-512)"
+msg "Repository added: $_cachyos_repo_added"
 
-msg "Aggiorno lista pacchetti..."
+msg "Refreshing package database..."
 run pacman -Sy
 
-msg "Installo linux-cachyos-bore e headers..."
+msg "Installing linux-cachyos-bore and headers..."
 if ! run pacman -S --needed --noconfirm linux-cachyos-bore linux-cachyos-bore-headers; then
-    error "Installazione kernel linux-cachyos-bore fallita."
+    error "Kernel linux-cachyos-bore installation failed."
     exit 1
 fi
 
 _bore_repo=$(pacman -Qi linux-cachyos-bore 2>/dev/null | awk -F': ' '/^Repository/{gsub(/^ +/,"",$2); print $2}')
-[ -z "$_bore_repo" ] && _bore_repo="(non disponibile)"
+[ -z "$_bore_repo" ] && _bore_repo="(not available)"
 echo ""
 printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
-printf "${CYAN}${BOLD}║        KERNEL INSTALLATO                     ║${ALL_OFF}\n"
+printf "${CYAN}${BOLD}║        KERNEL INSTALLED                      ║${ALL_OFF}\n"
 printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Kernel"     "linux-cachyos-bore"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Repository" "$_bore_repo"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30.30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Repo CPU"   "$_cachyos_repo_added"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30.30s ${CYAN}${BOLD}║${ALL_OFF}\n" "CPU repo"   "$_cachyos_repo_added"
 printf "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${ALL_OFF}\n"
 echo ""
 STATUS_CACHYOS=1
 
-msg "Rigenero initramfs..."
+msg "Regenerating initramfs..."
 run mkinitcpio -P
 
-# Bootloader
+# Bootloader detection
 if [ -f /etc/limine/limine.conf ] || [ -f /boot/limine/limine.conf ]; then
-    info "Limine rilevato — rileverà automaticamente il nuovo kernel al riavvio."
+    info "Limine detected — it will automatically pick up the new kernel on reboot."
 elif [ -f /boot/grub/grub.cfg ]; then
-    msg "GRUB rilevato — aggiorno grub.cfg..."
+    msg "GRUB detected — updating grub.cfg..."
     run update-grub
-    msg "grub.cfg aggiornato."
+    msg "grub.cfg updated."
 else
-    warn "Bootloader non rilevato automaticamente — aggiorna manualmente la configurazione di boot per includere linux-cachyos-bore."
+    warn "Bootloader not detected automatically — manually update your boot configuration to include linux-cachyos-bore."
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 2 10 "Installazione pacchetti"
+section 2 10 "Package installation"
 # ═════════════════════════════════════════════════════════════════════════════
 
-msg "Aggiorno il sistema..."
+msg "Updating system..."
 run pacman -Syu --noconfirm
 
-msg "Installo tutti i pacchetti core..."
+msg "Installing all core packages..."
 if ! run pacman -S --needed --noconfirm "${PACKAGES[@]}"; then
-    warn "Alcuni pacchetti non trovati. Riprovo uno per uno..."
+    warn "Some packages not found. Retrying one by one..."
     _total=${#PACKAGES[@]}
     _count=0
     for pkg in "${PACKAGES[@]}"; do
         _count=$(( _count + 1 ))
         progress_bar "$_count" "$_total" "$pkg"
-        run pacman -S --needed --noconfirm "$pkg" 2>/dev/null || warn "Non trovato: $pkg"
+        run pacman -S --needed --noconfirm "$pkg" 2>/dev/null || warn "Not found: $pkg"
     done
-    echo ""   # newline dopo la barra
+    echo ""   # newline after progress bar
     STATUS_PKGS=2
 else
     STATUS_PKGS=1
 fi
 [ "$STATUS_PKGS" -eq 0 ] && STATUS_PKGS=1
 
-# Gaming
+# Gaming packages
 [ "${#GAMING_PKGS[@]}" -gt 0 ] && {
-    msg "Installo pacchetti gaming..."
+    msg "Installing gaming packages..."
     run pacman -S --needed --noconfirm "${GAMING_PKGS[@]}" || true
 }
 
-# Player AV
+# Audio/Video players
 [ "${#AV_PKGS[@]}" -gt 0 ] && {
-    msg "Installo player audio/video..."
+    msg "Installing audio/video players..."
     run pacman -S --needed --noconfirm "${AV_PKGS[@]}" || true
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 3 10 "Pacchetti AUR con yay"
+section 3 10 "AUR packages with yay"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if ! command -v yay &>/dev/null; then
-    msg "Installo yay..."
+    msg "Installing yay..."
     run pacman -S --needed --noconfirm git base-devel
     sudo -u "$ACTUAL_USER" git clone https://aur.archlinux.org/yay.git /tmp/yay-build
     (cd /tmp/yay-build && sudo -u "$ACTUAL_USER" makepkg -si --noconfirm)
     rm -rf /tmp/yay-build
 fi
 
-msg "Installo noctalia-shell, noctalia-qs e vscodium..."
+msg "Installing noctalia-shell, noctalia-qs and vscodium..."
 if run sudo -u "$ACTUAL_USER" yay -S --needed --noconfirm \
     noctalia-shell noctalia-qs vscodium; then
     STATUS_AUR=1
 else
-    warn "Alcuni AUR packages falliti."
+    warn "Some AUR packages failed."
     STATUS_AUR=2
 fi
 
 # Laptop / auto-cpufreq
 if [ "$INSTALL_LAPTOP" -eq 1 ]; then
-    msg "Installo auto-cpufreq..."
+    msg "Installing auto-cpufreq..."
     if run sudo -u "$ACTUAL_USER" yay -S --needed --noconfirm auto-cpufreq; then
         STATUS_LAPTOP=1
     else
-        warn "auto-cpufreq non trovato nell'AUR."
+        warn "auto-cpufreq not found in AUR."
         STATUS_LAPTOP=2
     fi
 fi
 
 # Cosmic Store
 if [ "$INSTALL_COSMIC_STORE" -eq 1 ]; then
-    msg "Installo cosmic-store..."
-    run sudo -u "$ACTUAL_USER" yay -S --needed --noconfirm cosmic-store || warn "cosmic-store non trovato nell'AUR."
+    msg "Installing cosmic-store..."
+    run sudo -u "$ACTUAL_USER" yay -S --needed --noconfirm cosmic-store || warn "cosmic-store not found in AUR."
 fi
 
 # Browser
 case "$BROWSER" in
-    1) msg "Installo Brave Origin Nightly...";
+    1) msg "Installing Brave Origin Nightly...";
        run sudo -u "$ACTUAL_USER" yay -S --noconfirm brave-origin-nightly-bin ;;
-    2) msg "Installo Firefox...";     run pacman -S --noconfirm firefox ;;
-    3) msg "Installo LibreWolf...";   run sudo -u "$ACTUAL_USER" yay -S --noconfirm librewolf ;;
-    4) msg "Installo Vivaldi...";     run pacman -S --noconfirm vivaldi ;;
-    5) msg "Installo Zen Browser..."; run sudo -u "$ACTUAL_USER" yay -S --noconfirm zen-browser-bin ;;
-    *) info "Browser saltato." ;;
+    2) msg "Installing Firefox...";     run pacman -S --noconfirm firefox ;;
+    3) msg "Installing LibreWolf...";   run sudo -u "$ACTUAL_USER" yay -S --noconfirm librewolf ;;
+    4) msg "Installing Vivaldi...";     run pacman -S --noconfirm vivaldi ;;
+    5) msg "Installing Zen Browser..."; run sudo -u "$ACTUAL_USER" yay -S --noconfirm zen-browser-bin ;;
+    *) info "Browser skipped." ;;
 esac
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 4 10 "Servizi di sistema"
+section 4 10 "System services"
 # ═════════════════════════════════════════════════════════════════════════════
 
-msg "Abilito servizi..."
+msg "Enabling services..."
 run systemctl enable NetworkManager
 run systemctl enable power-profiles-daemon
 run systemctl enable sddm
-[ "$INSTALL_PRINTER" -eq 1 ] && run systemctl enable cups                  || true
-[ "$INSTALL_BT"      -eq 1 ] && run systemctl enable bluetooth             || true
-[ "$INSTALL_LAPTOP"  -eq 1 ] && run systemctl enable auto-cpufreq          || true
-run systemctl enable plymouth-quit-wait.service 2>/dev/null                 || true
+[ "$INSTALL_PRINTER" -eq 1 ] && run systemctl enable cups         || true
+[ "$INSTALL_BT"      -eq 1 ] && run systemctl enable bluetooth    || true
+[ "$INSTALL_LAPTOP"  -eq 1 ] && run systemctl enable auto-cpufreq || true
+run systemctl enable plymouth-quit-wait.service 2>/dev/null        || true
 STATUS_SERVICES=1
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 5 10 "Flatpak e Flathub"
+section 5 10 "Flatpak and Flathub"
 # ═════════════════════════════════════════════════════════════════════════════
 
-msg "Aggiungo Flathub remote..."
+msg "Adding Flathub remote..."
 if run sudo -u "$ACTUAL_USER" flatpak remote-add --if-not-exists flathub \
     https://dl.flathub.org/repo/flathub.flatpakrepo; then
     STATUS_FLATHUB=1
 else
-    warn "Flathub remote fallito."
+    warn "Flathub remote failed."
     STATUS_FLATHUB=2
 fi
 
 if [ "$INSTALL_COSMIC_STORE" -eq 1 ]; then
-    msg "Configuro permessi Flatpak per cosmic-store..."
+    msg "Configuring Flatpak permissions for cosmic-store..."
     run sudo -u "$ACTUAL_USER" flatpak override --user \
         --filesystem=home \
         --share=network \
@@ -697,7 +697,7 @@ if [ "$INSTALL_COSMIC_STORE" -eq 1 ]; then
         --socket=wayland \
         --socket=fallback-x11 \
         com.system76.CosmicStore 2>/dev/null || true
-    info "Permessi Flatpak applicati a cosmic-store"
+    info "Flatpak permissions applied to cosmic-store"
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -705,7 +705,7 @@ section 6 10 "ddcutil"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if [ "$INSTALL_DDCUTIL" -eq 1 ]; then
-    msg "Installo e configuro ddcutil..."
+    msg "Installing and configuring ddcutil..."
     run pacman -S --noconfirm --needed ddcutil || true
     run sudo -u "$ACTUAL_USER" yay -S --noconfirm --needed ddcutil-service || true
     run modprobe i2c-dev || true
@@ -715,19 +715,19 @@ if [ "$INSTALL_DDCUTIL" -eq 1 ]; then
     run usermod -aG i2c "$ACTUAL_USER" || true
     DDCUTIL_ENABLED=1
     STATUS_DDCUTIL=1
-    info "ddcutil configurato. Fai logout/reboot per applicare i gruppi."
+    info "ddcutil configured. Log out or reboot to apply group changes."
 else
-    STATUS_DDCUTIL=0   # saltato, non un errore
+    STATUS_DDCUTIL=0   # skipped, not an error
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 7 10 "Shell predefinita"
+section 7 10 "Default shell"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if command -v fish &>/dev/null; then
-    msg "Imposto fish come shell predefinita per $ACTUAL_USER..."
+    msg "Setting fish as default shell for $ACTUAL_USER..."
     run chsh -s /usr/bin/fish "$ACTUAL_USER"
-    info "Shell impostata a fish"
+    info "Shell set to fish"
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -738,13 +738,13 @@ CONFIG_SRC="$SCRIPT_DIR/.config"
 run sudo -u "$ACTUAL_USER" mkdir -p "$CONFIG_DIR"
 
 BACKUP_TS=$(date +%s)
-msg "Backup configurazioni esistenti..."
+msg "Backing up existing configurations..."
 for item in "$CONFIG_SRC"/*/; do
     name=$(basename "$item")
     target="$CONFIG_DIR/$name"
     [ -e "$target" ] && {
         run mv "$target" "$CONFIG_DIR/${name}.bak.${BACKUP_TS}"
-        info "Backup: $name"
+        info "Backed up: $name"
     }
 done
 while IFS= read -r f; do
@@ -755,24 +755,24 @@ done < <(find "$CONFIG_SRC" -maxdepth 1 -type f \
     \( -name "*.toml" -o -name "*.ini" -o -name "*.conf" \
        -o -name "*.json" -o -name "*.jsonc" \) 2>/dev/null)
 
-msg "Copio tutti i dotfiles..."
+msg "Copying all dotfiles..."
 run cp -rf "$CONFIG_SRC"/. "$CONFIG_DIR"/
 run chown -R "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR"
 
 if [ -f "$CONFIG_DIR/qt6ct/qt6ct.conf" ]; then
     run sed -i "s|__HOME__|$ACTUAL_USER_HOME|g" "$CONFIG_DIR/qt6ct/qt6ct.conf"
     run chown "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR/qt6ct/qt6ct.conf"
-    info "Path qt6ct aggiornato"
+    info "qt6ct path updated"
 fi
 
 if [ ! -f "$CONFIG_DIR/hypr/monitors.conf" ]; then
     sudo -u "$ACTUAL_USER" tee "$CONFIG_DIR/hypr/monitors.conf" >/dev/null << 'MONEOF'
-# Configura i tuoi monitor qui.
-# Esempio: monitor=DP-1,1920x1080@144,0x0,1
-# Vedi: https://wiki.hyprland.org/Configuring/Monitors/
+# Configure your monitors here.
+# Example: monitor=DP-1,1920x1080@144,0x0,1
+# See: https://wiki.hyprland.org/Configuring/Monitors/
 monitor=,preferred,auto,1
 MONEOF
-    info "monitors.conf placeholder creato — configuralo con i tuoi monitor"
+    info "monitors.conf placeholder created — configure it with your monitor setup"
 fi
 
 [ "$DDCUTIL_ENABLED" -eq 1 ] && [ -f "$CONFIG_DIR/noctalia/settings.json" ] && {
@@ -786,13 +786,13 @@ PY
     chown "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR/noctalia/settings.json"
 }
 
-msg "Permessi script hyprland..."
+msg "Setting Hyprland script permissions..."
 [ -d "$CONFIG_DIR/hypr/Scripts" ] && \
     find "$CONFIG_DIR/hypr/Scripts" -type f -exec chmod +x {} \;
 STATUS_DOTFILES=1
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 9 10 "Tema GTK e Qt"
+section 9 10 "GTK and Qt theme"
 # ═════════════════════════════════════════════════════════════════════════════
 
 if command -v gsettings &>/dev/null; then
@@ -802,10 +802,10 @@ if command -v gsettings &>/dev/null; then
     run sudo -u "$ACTUAL_USER" gsettings set org.gnome.desktop.interface cursor-size  24
     run sudo -u "$ACTUAL_USER" gsettings set org.gnome.desktop.interface font-name    'Adwaita Sans 11'
     run sudo -u "$ACTUAL_USER" gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
-    msg "gsettings applicati"
+    msg "gsettings applied"
     STATUS_GTK=1
 else
-    warn "gsettings non disponibile"
+    warn "gsettings not available"
     STATUS_GTK=2
 fi
 
@@ -817,7 +817,7 @@ QT_STYLE_OVERRIDE=Breeze
 ENV
 
 # ═════════════════════════════════════════════════════════════════════════════
-section 10 10 "Thunar e directory utente"
+section 10 10 "Thunar and user directories"
 # ═════════════════════════════════════════════════════════════════════════════
 
 run sudo -u "$ACTUAL_USER" xdg-user-dirs-update || true
@@ -839,11 +839,11 @@ EOF
     run sudo -u "$ACTUAL_USER" mkdir -p "$CONFIG_DIR/pipewire"
     run cp -rf "$SCRIPT_DIR/pipewire/"* "$CONFIG_DIR/pipewire/"
     run chown -R "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR/pipewire"
-    msg "Profilo Dolby PipeWire applicato"
+    msg "Dolby PipeWire profile applied"
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
-# CHECKLIST FINALE + TIMER
+# FINAL CHECKLIST + TIMER
 # ═════════════════════════════════════════════════════════════════════════════
 END_TIME=$(date +%s)
 ELAPSED=$(( END_TIME - START_TIME ))
@@ -864,33 +864,33 @@ _fmt_status() {
 
 echo ""
 printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
-printf "${CYAN}${BOLD}║           RIEPILOGO INSTALLAZIONE            ║${ALL_OFF}\n"
+printf "${CYAN}${BOLD}║           INSTALLATION SUMMARY               ║${ALL_OFF}\n"
 printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
-printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_CACHYOS)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Repository CachyOS + kernel bore"
-printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_PKGS)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Pacchetti core"
-printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_AUR)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Pacchetti AUR (noctalia, vscodium)"
-printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_SERVICES)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Servizi di sistema (sddm, NM...)"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_CACHYOS)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "CachyOS repositories + bore kernel"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_PKGS)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Core packages"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_AUR)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "AUR packages (noctalia, vscodium)"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_SERVICES)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "System services (sddm, NM...)"
 printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_FLATHUB)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Flatpak / Flathub"
-printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_DOTFILES)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Dotfiles deployati"
-printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_GTK)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Tema GTK / Qt / gsettings"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_DOTFILES)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "Dotfiles deployed"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_GTK)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "GTK / Qt / gsettings theme"
 if [ "$INSTALL_DDCUTIL" -eq 1 ]; then
-printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_DDCUTIL)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "ddcutil (DDC/CI monitor)"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_DDCUTIL)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "ddcutil (DDC/CI monitor control)"
 fi
 if [ "$INSTALL_LAPTOP" -eq 1 ]; then
-printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_LAPTOP)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "auto-cpufreq (gestione batteria)"
+printf "${CYAN}${BOLD}║${ALL_OFF} $(_fmt_status $STATUS_LAPTOP)   %-38s ${CYAN}${BOLD}║${ALL_OFF}\n" "auto-cpufreq (battery management)"
 fi
 printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
-printf "${CYAN}${BOLD}║${ALL_OFF}  ${GREEN}${BOLD}%-44s${ALL_OFF} ${CYAN}${BOLD}║${ALL_OFF}\n" "Tempo totale: ${ELAPSED_MIN}m ${ELAPSED_SEC}s"
+printf "${CYAN}${BOLD}║${ALL_OFF}  ${GREEN}${BOLD}%-44s${ALL_OFF} ${CYAN}${BOLD}║${ALL_OFF}\n" "Total time: ${ELAPSED_MIN}m ${ELAPSED_SEC}s"
 printf "${CYAN}${BOLD}║${ALL_OFF}  Log: %-40s ${CYAN}${BOLD}║${ALL_OFF}\n" "$LOG_FILE"
 printf "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${ALL_OFF}\n"
 echo ""
 
-printf "${CYAN}Note importanti:${ALL_OFF}\n"
-printf "  • ${YELLOW}monitors.conf${ALL_OFF} è un placeholder: configuralo con i tuoi monitor\n"
+printf "${CYAN}Important notes:${ALL_OFF}\n"
+printf "  • ${YELLOW}monitors.conf${ALL_OFF} is a placeholder: configure it with your monitor setup\n"
 printf "      nano %s/hypr/monitors.conf\n" "$CONFIG_DIR"
-printf "  • Se usi NVIDIA, verifica che il kernel corretto sia attivo:\n"
-printf "      uname -r  (deve contenere 'cachyos' o 'bore')\n"
-printf "  • Verifica che hyprland.conf includa:\n"
+printf "  • If you use NVIDIA, verify the correct kernel is active:\n"
+printf "      uname -r  (should contain 'cachyos' or 'bore')\n"
+printf "  • Make sure hyprland.conf includes:\n"
 printf "      ${YELLOW}source = ~/.config/hypr/themes/theme.conf${ALL_OFF}\n"
 printf "      ${YELLOW}source = ~/.config/hypr/noctalia/noctalia-colors.conf${ALL_OFF}\n\n"
 
