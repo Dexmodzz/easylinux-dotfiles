@@ -29,8 +29,6 @@
 
 ## System
 
-<div align="center">
-
 | | Component | Detail |
 |:---:|---|---|
 | 🐧 | **Distro** | CachyOS (Arch-based) — recommended |
@@ -43,8 +41,6 @@
 | 🖼️ | **Icons** | Yaru-blue-dark |
 | 🖱️ | **Cursor** | Bibata-Modern-Classic |
 | 🔵 | **Accent color** | `#5b9fef` (blue) |
-
-</div>
 
 > **Tested on:** CachyOS (Arch-based) — recommended.
 > **Compatible with:** all Arch-based distributions (Arch Linux, EndeavourOS, Manjaro, etc.)
