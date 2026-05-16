@@ -40,7 +40,7 @@
 
 ### Screenshot
 
-![Screenshot](./assets/screenshot.png)
+![Screenshot](desktop.png)
 
 > Replace this placeholder with a real screenshot of your desktop.
 
