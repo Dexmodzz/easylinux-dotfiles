@@ -19,7 +19,7 @@
 > [!CAUTION]
 > Your **/boot/EFI partition must have at least 600MB of free space** before running the script.
 > The CachyOS bore kernel + headers + initramfs require significant space on /boot.
-> If your partition is too small, the script will stop automatically and ask you to reinstall CachyOS with a larger /boot partition (750MB recommended).
+> If your partition is too small, the script will stop automatically and ask you to reinstall CachyOS or your Arch-based distro with a larger /boot partition (750MB recommended).
 
 </div>
 
