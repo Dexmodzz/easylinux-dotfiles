@@ -46,6 +46,7 @@
 ### Screenshot
 
 ![Screenshot](/assets/desktop.png)
+![Screenshot](/assets/desktop2.png)
 
 
 
