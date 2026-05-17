@@ -582,17 +582,49 @@ msg "Repository added: $_cachyos_repo_added"
 msg "Refreshing package database..."
 run pacman -Sy
 
+# ── Step 1: GPU drivers (must be installed before mkinitcpio) ─────────────────
+msg "Installing GPU drivers..."
+case "$GPU_MODE" in
+    nvidia)
+        run pacman -S --needed --noconfirm \
+            nvidia-open nvidia-utils lib32-nvidia-utils \
+            nvidia-settings libva-nvidia-driver egl-wayland || true
+        # Also install AMD mesa stack for Wayland and hybrid laptop support
+        run pacman -S --needed --noconfirm \
+            mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon || true
+        ;;
+    amd)
+        run pacman -S --needed --noconfirm \
+            mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon \
+            libva-mesa-driver lib32-libva-mesa-driver || true
+        ;;
+    intel)
+        run pacman -S --needed --noconfirm \
+            intel-media-driver vulkan-intel lib32-vulkan-intel \
+            mesa lib32-mesa || true
+        ;;
+    *)
+        info "GPU driver installation skipped."
+        ;;
+esac
+
 if [ "$INSTALL_BORE_KERNEL" -eq 1 ]; then
+    # ── Step 2: Remove old kernels ────────────────────────────────────────────
     info "Cleaning up old kernels..."
     while IFS= read -r _kpkg; do
         run pacman -Rns --noconfirm "$_kpkg" &>/dev/null 2>&1 || true
     done < <(pacman -Qq 2>/dev/null | grep -E '^linux' | grep -v 'cachyos-bore' || true)
 
+    # ── Step 3: Install bore kernel ───────────────────────────────────────────
     msg "Installing linux-cachyos-bore and headers..."
     if ! run pacman -S --needed --noconfirm linux-cachyos-bore linux-cachyos-bore-headers; then
         error "Kernel linux-cachyos-bore installation failed."
         exit 1
     fi
+
+    # For NVIDIA: install the bore-specific kernel module after bore is installed
+    [ "$GPU_MODE" = "nvidia" ] && \
+        run pacman -S --needed --noconfirm linux-cachyos-bore-nvidia-open || true
 
     _bore_repo=$(pacman -Qi linux-cachyos-bore 2>/dev/null | awk -F': ' '/^Repository/{gsub(/^ +/,"",$2); print $2}')
     [ -z "$_bore_repo" ] && _bore_repo="(not available)"
@@ -607,10 +639,11 @@ if [ "$INSTALL_BORE_KERNEL" -eq 1 ]; then
     echo ""
     STATUS_CACHYOS=1
 
+    # ── Step 4: mkinitcpio (GPU drivers + kernel both present now) ────────────
     msg "Regenerating initramfs..."
     run mkinitcpio -P
 
-    # Bootloader detection
+    # ── Step 5: Update bootloader ─────────────────────────────────────────────
     _limine_conf=""
     [ -f /etc/limine/limine.conf ]  && _limine_conf="/etc/limine/limine.conf"
     [ -f /boot/limine/limine.conf ] && _limine_conf="/boot/limine/limine.conf"
