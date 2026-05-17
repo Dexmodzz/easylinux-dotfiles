@@ -518,10 +518,10 @@ PACKAGES=(
 case "$GPU_MODE" in
     nvidia)
         PACKAGES+=(
-            linux-cachyos-bore-nvidia-open
-            nvidia-utils lib32-nvidia-utils
+            linux-cachyos-bore-nvidia-open linux-cachyos-bore-nvidia-open-headers
+            nvidia-open-dkms nvidia-utils lib32-nvidia-utils
             opencl-nvidia lib32-opencl-nvidia
-            nvidia-settings libva-nvidia-driver
+            nvidia-settings libva-nvidia-driver egl-wayland
             vulkan-icd-loader lib32-vulkan-icd-loader
         )
         ;;
@@ -587,7 +587,7 @@ msg "Installing GPU drivers..."
 case "$GPU_MODE" in
     nvidia)
         run pacman -S --needed --noconfirm \
-            nvidia-open nvidia-utils lib32-nvidia-utils \
+            nvidia-open-dkms nvidia-utils lib32-nvidia-utils \
             nvidia-settings libva-nvidia-driver egl-wayland || true
         # Also install AMD mesa stack for Wayland and hybrid laptop support
         run pacman -S --needed --noconfirm \
@@ -616,23 +616,33 @@ if [ "$INSTALL_BORE_KERNEL" -eq 1 ]; then
     done < <(pacman -Qq 2>/dev/null | grep -E '^linux' | grep -v 'cachyos-bore' || true)
 
     # ── Step 3: Install bore kernel ───────────────────────────────────────────
-    msg "Installing linux-cachyos-bore and headers..."
-    if ! run pacman -S --needed --noconfirm linux-cachyos-bore linux-cachyos-bore-headers; then
-        error "Kernel linux-cachyos-bore installation failed."
+    if [ "$GPU_MODE" = "nvidia" ]; then
+        _kernel_pkg="linux-cachyos-bore-nvidia-open"
+        _kernel_headers="linux-cachyos-bore-nvidia-open-headers"
+        _kernel_label="linux-cachyos-bore-nvidia-open"
+        _vmlinuz="vmlinuz-linux-cachyos-bore-nvidia-open"
+        _initramfs="initramfs-linux-cachyos-bore-nvidia-open.img"
+    else
+        _kernel_pkg="linux-cachyos-bore"
+        _kernel_headers="linux-cachyos-bore-headers"
+        _kernel_label="linux-cachyos-bore"
+        _vmlinuz="vmlinuz-linux-cachyos-bore"
+        _initramfs="initramfs-linux-cachyos-bore.img"
+    fi
+
+    msg "Installing ${_kernel_label} and headers..."
+    if ! run pacman -S --needed --noconfirm "$_kernel_pkg" "$_kernel_headers"; then
+        error "Kernel ${_kernel_label} installation failed."
         exit 1
     fi
 
-    # For NVIDIA: install the bore-specific kernel module after bore is installed
-    [ "$GPU_MODE" = "nvidia" ] && \
-        run pacman -S --needed --noconfirm linux-cachyos-bore-nvidia-open || true
-
-    _bore_repo=$(pacman -Qi linux-cachyos-bore 2>/dev/null | awk -F': ' '/^Repository/{gsub(/^ +/,"",$2); print $2}')
+    _bore_repo=$(pacman -Qi "$_kernel_pkg" 2>/dev/null | awk -F': ' '/^Repository/{gsub(/^ +/,"",$2); print $2}')
     [ -z "$_bore_repo" ] && _bore_repo="(not available)"
     echo ""
     printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
     printf "${CYAN}${BOLD}║        KERNEL INSTALLED                      ║${ALL_OFF}\n"
     printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
-    printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Kernel"     "linux-cachyos-bore"
+    printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30.30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Kernel"     "$_kernel_label"
     printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Repository" "$_bore_repo"
     printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30.30s ${CYAN}${BOLD}║${ALL_OFF}\n" "CPU repo"   "$_cachyos_repo_added"
     printf "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${ALL_OFF}\n"
@@ -659,10 +669,10 @@ if [ "$INSTALL_BORE_KERNEL" -eq 1 ]; then
         run tee "$_limine_conf" >/dev/null << LIMEOF
 timeout: $_timeout
 
-:CachyOS Linux (bore)
+:CachyOS Linux (${_kernel_label})
     protocol: linux
-    path: boot():///vmlinuz-linux-cachyos-bore
-    module_path: boot():///initramfs-linux-cachyos-bore.img
+    path: boot():///$(echo "$_vmlinuz")
+    module_path: boot():///$(echo "$_initramfs")
     cmdline: $_cmdline
 LIMEOF
         info "limine.conf updated — root=UUID=$_root_uuid"
@@ -671,7 +681,7 @@ LIMEOF
         run update-grub
         msg "grub.cfg updated."
     else
-        warn "Bootloader not detected automatically — manually update your boot configuration to include linux-cachyos-bore."
+        warn "Bootloader not detected automatically — manually update your boot configuration to include ${_kernel_label}."
     fi
 else
     info "Bore kernel installation skipped — keeping current kernel."
