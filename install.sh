@@ -357,6 +357,17 @@ while true; do
     case "$c" in 1) INSTALL_LAPTOP=1; break ;; 2) break ;; *) echo "1 or 2." ;; esac
 done
 
+# ── CachyOS bore kernel ───────────────────────────────────────────────────────
+INSTALL_BORE_KERNEL=1
+echo ""
+echo "CachyOS bore kernel (linux-cachyos-bore):"
+echo "  [1] Yes  (recommended — removes old kernels, installs bore, updates bootloader)"
+echo "  [2] No   (skip — keeps current kernel, no changes to /boot)"
+while true; do
+    read -r -p "Choice (1-2): " c
+    case "$c" in 1) INSTALL_BORE_KERNEL=1; break ;; 2) INSTALL_BORE_KERNEL=0; break ;; *) echo "1 or 2." ;; esac
+done
+
 # ── ddcutil ───────────────────────────────────────────────────────────────────
 INSTALL_DDCUTIL=0
 echo ""
@@ -386,11 +397,13 @@ _printer_label="No"; [ "$INSTALL_PRINTER"       -eq 1 ] && _printer_label="Yes"
 _ddcutil_label="No"; [ "$INSTALL_DDCUTIL"       -eq 1 ] && _ddcutil_label="Yes"
 _cosmic_label="No";  [ "$INSTALL_COSMIC_STORE"  -eq 1 ] && _cosmic_label="Yes"
 _laptop_label="No";  [ "$INSTALL_LAPTOP"        -eq 1 ] && _laptop_label="Yes (auto-cpufreq)"
+_bore_label="Skip";  [ "$INSTALL_BORE_KERNEL"   -eq 1 ] && _bore_label="Yes (remove old + install bore)"
 
 echo ""
 printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
 printf "${CYAN}${BOLD}║       INSTALLATION SUMMARY                   ║${ALL_OFF}\n"
 printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
+printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30.30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Bore kernel" "$_bore_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "GPU"         "$_gpu_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Browser"     "$_browser_label"
 printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Audio"       "$_audio_label"
@@ -569,47 +582,48 @@ msg "Repository added: $_cachyos_repo_added"
 msg "Refreshing package database..."
 run pacman -Sy
 
-info "Cleaning up old kernels..."
-while IFS= read -r _kpkg; do
-    run pacman -Rns --noconfirm "$_kpkg" &>/dev/null 2>&1 || true
-done < <(pacman -Qq 2>/dev/null | grep -E '^linux' | grep -v 'cachyos-bore' || true)
+if [ "$INSTALL_BORE_KERNEL" -eq 1 ]; then
+    info "Cleaning up old kernels..."
+    while IFS= read -r _kpkg; do
+        run pacman -Rns --noconfirm "$_kpkg" &>/dev/null 2>&1 || true
+    done < <(pacman -Qq 2>/dev/null | grep -E '^linux' | grep -v 'cachyos-bore' || true)
 
-msg "Installing linux-cachyos-bore and headers..."
-if ! run pacman -S --needed --noconfirm linux-cachyos-bore linux-cachyos-bore-headers; then
-    error "Kernel linux-cachyos-bore installation failed."
-    exit 1
-fi
+    msg "Installing linux-cachyos-bore and headers..."
+    if ! run pacman -S --needed --noconfirm linux-cachyos-bore linux-cachyos-bore-headers; then
+        error "Kernel linux-cachyos-bore installation failed."
+        exit 1
+    fi
 
-_bore_repo=$(pacman -Qi linux-cachyos-bore 2>/dev/null | awk -F': ' '/^Repository/{gsub(/^ +/,"",$2); print $2}')
-[ -z "$_bore_repo" ] && _bore_repo="(not available)"
-echo ""
-printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
-printf "${CYAN}${BOLD}║        KERNEL INSTALLED                      ║${ALL_OFF}\n"
-printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Kernel"     "linux-cachyos-bore"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Repository" "$_bore_repo"
-printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30.30s ${CYAN}${BOLD}║${ALL_OFF}\n" "CPU repo"   "$_cachyos_repo_added"
-printf "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${ALL_OFF}\n"
-echo ""
-STATUS_CACHYOS=1
+    _bore_repo=$(pacman -Qi linux-cachyos-bore 2>/dev/null | awk -F': ' '/^Repository/{gsub(/^ +/,"",$2); print $2}')
+    [ -z "$_bore_repo" ] && _bore_repo="(not available)"
+    echo ""
+    printf "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${ALL_OFF}\n"
+    printf "${CYAN}${BOLD}║        KERNEL INSTALLED                      ║${ALL_OFF}\n"
+    printf "${CYAN}${BOLD}╠══════════════════════════════════════════════╣${ALL_OFF}\n"
+    printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Kernel"     "linux-cachyos-bore"
+    printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30s ${CYAN}${BOLD}║${ALL_OFF}\n" "Repository" "$_bore_repo"
+    printf "${CYAN}${BOLD}║${ALL_OFF}  %-12s ${CYAN}│${ALL_OFF} %-30.30s ${CYAN}${BOLD}║${ALL_OFF}\n" "CPU repo"   "$_cachyos_repo_added"
+    printf "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${ALL_OFF}\n"
+    echo ""
+    STATUS_CACHYOS=1
 
-msg "Regenerating initramfs..."
-run mkinitcpio -P
+    msg "Regenerating initramfs..."
+    run mkinitcpio -P
 
-# Bootloader detection
-_limine_conf=""
-[ -f /etc/limine/limine.conf ]  && _limine_conf="/etc/limine/limine.conf"
-[ -f /boot/limine/limine.conf ] && _limine_conf="/boot/limine/limine.conf"
-[ -f /boot/limine.conf ]        && _limine_conf="/boot/limine.conf"
+    # Bootloader detection
+    _limine_conf=""
+    [ -f /etc/limine/limine.conf ]  && _limine_conf="/etc/limine/limine.conf"
+    [ -f /boot/limine/limine.conf ] && _limine_conf="/boot/limine/limine.conf"
+    [ -f /boot/limine.conf ]        && _limine_conf="/boot/limine.conf"
 
-if [ -n "$_limine_conf" ]; then
-    msg "Updating limine.conf for bore kernel..."
-    _root_uuid=$(blkid -s UUID -o value "$(findmnt -n -o SOURCE /)" 2>/dev/null || true)
-    _timeout=$(grep -m1 '^timeout:' "$_limine_conf" 2>/dev/null | awk '{print $2}')
-    [ -z "$_timeout" ] && _timeout="5"
-    _cmdline="root=UUID=${_root_uuid} rw quiet splash"
-    [ "$GPU_MODE" = "nvidia" ] && _cmdline="$_cmdline nvidia_drm.modeset=1"
-    run tee "$_limine_conf" >/dev/null << LIMEOF
+    if [ -n "$_limine_conf" ]; then
+        msg "Updating limine.conf for bore kernel..."
+        _root_uuid=$(blkid -s UUID -o value "$(findmnt -n -o SOURCE /)" 2>/dev/null || true)
+        _timeout=$(grep -m1 '^timeout:' "$_limine_conf" 2>/dev/null | awk '{print $2}')
+        [ -z "$_timeout" ] && _timeout="5"
+        _cmdline="root=UUID=${_root_uuid} rw quiet splash"
+        [ "$GPU_MODE" = "nvidia" ] && _cmdline="$_cmdline nvidia_drm.modeset=1"
+        run tee "$_limine_conf" >/dev/null << LIMEOF
 timeout: $_timeout
 
 :CachyOS Linux (bore)
@@ -618,13 +632,17 @@ timeout: $_timeout
     module_path: boot():///initramfs-linux-cachyos-bore.img
     cmdline: $_cmdline
 LIMEOF
-    info "limine.conf updated — root=UUID=$_root_uuid"
-elif [ -f /boot/grub/grub.cfg ]; then
-    msg "GRUB detected — updating grub.cfg..."
-    run update-grub
-    msg "grub.cfg updated."
+        info "limine.conf updated — root=UUID=$_root_uuid"
+    elif [ -f /boot/grub/grub.cfg ]; then
+        msg "GRUB detected — updating grub.cfg..."
+        run update-grub
+        msg "grub.cfg updated."
+    else
+        warn "Bootloader not detected automatically — manually update your boot configuration to include linux-cachyos-bore."
+    fi
 else
-    warn "Bootloader not detected automatically — manually update your boot configuration to include linux-cachyos-bore."
+    info "Bore kernel installation skipped — keeping current kernel."
+    STATUS_CACHYOS=0
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
